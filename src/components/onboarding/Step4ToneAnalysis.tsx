@@ -1,6 +1,6 @@
 import type { ChangeEvent } from "react";
 import { useEffect, useState, useCallback } from "react";
-import { apiHeaders } from "@/lib/api/headers";
+
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,7 +93,7 @@ export function Step4ToneAnalysis({
     try {
       const response = await fetch("/api/onboarding/analyze-tone", {
         method: "POST",
-        headers: apiHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sentEmails: state.sentScan.rawEmails ?? [],
           websiteContent: state.websiteData?.rawText ?? null,

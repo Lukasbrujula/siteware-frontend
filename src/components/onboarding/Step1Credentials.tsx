@@ -1,6 +1,6 @@
 import type { ChangeEvent } from "react";
 import { useState } from "react";
-import { apiHeaders } from "@/lib/api/headers";
+
 import {
   CheckCircle2,
   Loader2,
@@ -143,7 +143,7 @@ export function Step1Credentials({ onUpdate, onNext }: Step1CredentialsProps) {
     try {
       const response = await fetch("/api/onboarding/test-connection", {
         method: "POST",
-        headers: apiHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: email.trim(),
           password,

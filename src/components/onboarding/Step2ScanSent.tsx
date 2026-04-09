@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { apiHeaders } from "@/lib/api/headers";
+
 import { Loader2, AlertCircle, Mail, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -54,7 +54,7 @@ export function Step2ScanSent({ state, onUpdate, onNext }: Step2ScanSentProps) {
     try {
       const response = await fetch("/api/onboarding/scan-sent", {
         method: "POST",
-        headers: apiHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imapHost: credentials.imapHost,
           imapPort: credentials.imapPort,

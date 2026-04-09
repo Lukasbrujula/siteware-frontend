@@ -1,6 +1,3 @@
-import { apiHeaders } from "@/lib/api/headers";
-import { getTenantId } from "@/lib/store/auth-store";
-
 // --- Payload types ---
 
 export type ApproveDraftPayload = {
@@ -17,15 +14,6 @@ export type RejectDraftPayload = {
   readonly reason?: string;
 };
 
-/**
- * Retriage payload is intentionally minimal. The dashboard only receives a
- * 150-char preview from n8n's inbound push — not the full email body
- * (body_plain, body_html, sender_name, sender_domain, etc.).
- *
- * For n8n to re-classify the email properly, it needs to look up the full
- * email body by email_id from its own storage. This is an n8n-side
- * responsibility, not a dashboard limitation.
- */
 export type RetriagePayload = {
   readonly email_id: string;
   readonly sender_email: string;
@@ -64,7 +52,7 @@ async function postWebhook<T extends Record<string, unknown>>(
 
   const response = await fetch(url, {
     method: "POST",
-    headers: apiHeaders({ "Content-Type": "application/json" }),
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(30_000),
   });
@@ -84,13 +72,11 @@ export async function approveDraft(
   payload: ApproveDraftPayload,
 ): Promise<void> {
   const url = "/api/email/send";
-  const tenantId = getTenantId();
 
   const response = await fetch(url, {
     method: "POST",
-    headers: apiHeaders({ "Content-Type": "application/json" }),
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      tenant_id: tenantId,
       to: payload.sender_email,
       subject: payload.subject,
       body_html: payload.draft_html,

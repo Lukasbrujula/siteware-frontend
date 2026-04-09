@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiHeaders } from "@/lib/api/headers";
 import {
   Loader2,
   AlertCircle,
@@ -77,7 +76,7 @@ export function Step5Confirm({ state, onEditTone }: Step5ConfirmProps) {
     try {
       const response = await fetch("/api/onboarding/save-tenant", {
         method: "POST",
-        headers: apiHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           credentials: {
             email: state.credentials.email,
@@ -106,25 +105,9 @@ export function Step5Confirm({ state, onEditTone }: Step5ConfirmProps) {
         return;
       }
 
-      if (data.accessToken) {
-        const origin = window.location.origin;
-        setDashboardUrl(`${origin}?t=${data.accessToken}`);
-        setSaveState("success");
-
-        // Fire-and-forget: backfill INBOX so the tenant sees recent emails
-        // immediately instead of waiting for the next poller cycle
-        if (data.tenantId) {
-          fetch("/api/onboarding/backfill-inbox", {
-            method: "POST",
-            headers: apiHeaders({ "Content-Type": "application/json" }),
-            body: JSON.stringify({ tenantId: data.tenantId }),
-          }).catch(() => {
-            // Backfill failure is non-critical — poller will pick up emails later
-          });
-        }
-      } else {
-        navigate("/");
-      }
+      setSaveState("success");
+      setDashboardUrl(window.location.origin);
+      navigate("/");
     } catch {
       setSaveState("error");
       setErrorMessage("Netzwerkfehler — Server nicht erreichbar");
@@ -139,11 +122,7 @@ export function Step5Confirm({ state, onEditTone }: Step5ConfirmProps) {
   }
 
   function handleGoToDashboard() {
-    const params = new URLSearchParams(dashboardUrl.split("?")[1] ?? "");
-    const token = params.get("t") ?? "";
-    // Full page reload — navigate() would race with location.href and
-    // cause an aborted verify fetch, resulting in "Kein Zugang"
-    window.location.href = `/?t=${token}`;
+    navigate("/");
   }
 
   const { credentials, sentScan, websiteData, toneProfile } = state;

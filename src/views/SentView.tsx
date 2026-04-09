@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { apiHeaders } from "@/lib/api/headers";
-import { getTenantId } from "@/lib/store/auth-store";
 import { ChevronDown, ChevronRight, Inbox, Loader2 } from "lucide-react";
 import {
   Card,
@@ -68,9 +66,7 @@ export function SentView() {
     if (hasFetched) return;
 
     setIsLoading(true);
-    const tenantId = getTenantId();
-    fetch(`/api/emails/sent?tenant_id=${encodeURIComponent(tenantId)}`, {
-      headers: apiHeaders(),
+    fetch("/api/emails/sent", {
       signal: AbortSignal.timeout(10_000),
     })
       .then((res) => res.json())

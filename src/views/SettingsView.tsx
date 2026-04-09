@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Loader2, Trash2, Plus, Mail } from "lucide-react";
-import { apiHeaders } from "@/lib/api/headers";
 import { Button } from "@/components/ui/button";
 import { ToneSettingsPanel } from "@/components/settings/ToneSettingsPanel";
 import { useAuthStore } from "@/lib/store/auth-store";
@@ -37,9 +36,7 @@ export function SettingsView() {
 
   const fetchTenants = useCallback(async () => {
     try {
-      const response = await fetch("/api/onboarding/tenants", {
-        headers: apiHeaders(),
-      });
+      const response = await fetch("/api/onboarding/tenants");
 
       if (!response.ok) {
         setLoadState("error");
@@ -75,7 +72,7 @@ export function SettingsView() {
     try {
       const response = await fetch("/api/onboarding/tenant-toggle", {
         method: "POST",
-        headers: apiHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tenant_id: tenantId,
           active: currentActive === 0,
@@ -109,7 +106,7 @@ export function SettingsView() {
     try {
       const response = await fetch("/api/onboarding/tenant-delete", {
         method: "POST",
-        headers: apiHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tenant_id: deleteTarget.tenant_id }),
       });
 

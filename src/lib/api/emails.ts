@@ -1,17 +1,51 @@
 import { useEmailStore } from "@/lib/store/email-store";
-import { apiHeaders } from "@/lib/api/headers";
-import { getTenantId } from "@/lib/store/auth-store";
+
+type RawEmail = Record<string, unknown>;
+
+function mapBackendEmail(raw: RawEmail): RawEmail {
+  const fromAddress = (raw.from_address as string) ?? "";
+  const senderEmail =
+    (fromAddress || (raw.sender_email as string | undefined)) ?? "";
+  const senderName =
+    (raw.sender_name as string | undefined) ?? senderEmail.split("@")[0] ?? "";
+  const senderDomain = senderEmail.includes("@")
+    ? senderEmail.split("@")[1]
+    : "";
+
+  return {
+    ...raw,
+    email_id: raw.email_id ?? raw.id,
+    sender_email: senderEmail,
+    sender_name: senderName,
+    sender_domain: senderDomain,
+    body_plain: raw.body_plain ?? raw.body,
+    category: raw.category ?? raw.classification,
+    date: raw.date ?? raw.received_at,
+    timestamp: raw.timestamp ?? raw.received_at,
+  };
+}
+
+export function mapBackendResponse(
+  data: Record<string, unknown[]>,
+): Record<string, unknown[]> {
+  const result: Record<string, unknown[]> = {};
+  for (const [key, emails] of Object.entries(data)) {
+    result[key] = Array.isArray(emails)
+      ? emails.map((e) =>
+          typeof e === "object" && e !== null
+            ? mapBackendEmail(e as RawEmail)
+            : e,
+        )
+      : emails;
+  }
+  return result;
+}
 
 export async function refreshStoreFromServer(): Promise<void> {
-  const tenantId = getTenantId();
-
-  const response = await fetch(
-    `/api/emails?tenant_id=${encodeURIComponent(tenantId)}`,
-    {
-      headers: apiHeaders(),
-      signal: AbortSignal.timeout(10_000),
-    },
-  );
+  const response = await fetch("/api/emails", {
+    headers: { "Cache-Control": "no-cache" },
+    signal: AbortSignal.timeout(10_000),
+  });
   if (!response.ok) return;
 
   const json = (await response.json()) as {
@@ -20,7 +54,7 @@ export async function refreshStoreFromServer(): Promise<void> {
   };
   if (!json.success) return;
 
-  useEmailStore.getState().hydrateFromServer(json.data);
+  useEmailStore.getState().hydrateFromServer(mapBackendResponse(json.data));
 }
 
 export class ServerApiError extends Error {
@@ -40,7 +74,6 @@ export async function deleteEmailFromServer(emailId: string): Promise<void> {
 
   const response = await fetch(url, {
     method: "DELETE",
-    headers: apiHeaders(),
     signal: AbortSignal.timeout(10_000),
   });
 
@@ -66,7 +99,7 @@ export async function updateEmailStatus(
 
   const response = await fetch(url, {
     method: "PATCH",
-    headers: apiHeaders({ "Content-Type": "application/json" }),
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(10_000),
   });

@@ -1,55 +1,66 @@
 import { create } from "zustand";
-import { SESSION_TOKEN_KEY } from "@/lib/constants";
+
+type User = {
+  readonly email: string;
+  readonly name?: string;
+};
 
 type AuthState = {
-  readonly tenantId: string | null;
-  readonly imapUser: string | null;
+  readonly user: User | null;
   readonly isVerified: boolean;
   readonly isLoading: boolean;
   readonly error: string | null;
 };
 
 type AuthActions = {
-  readonly setVerified: (tenantId: string, imapUser: string) => void;
+  readonly checkAuth: () => Promise<void>;
+  readonly logout: () => Promise<void>;
+  readonly setUser: (user: User) => void;
   readonly setLoading: (loading: boolean) => void;
   readonly setError: (error: string) => void;
-  readonly reset: () => void;
 };
 
 type AuthStore = AuthState & AuthActions;
 
 export const useAuthStore = create<AuthStore>((set) => ({
-  tenantId: null,
-  imapUser: null,
+  user: null,
   isVerified: false,
   isLoading: true,
   error: null,
 
-  setVerified: (tenantId, imapUser) =>
-    set({
-      tenantId,
-      imapUser,
-      isVerified: true,
-      isLoading: false,
-      error: null,
-    }),
+  checkAuth: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch("/api/auth/me");
+      if (response.ok) {
+        const data = (await response.json()) as User;
+        set({ user: data, isVerified: true, isLoading: false, error: null });
+      } else {
+        set({ user: null, isVerified: false, isLoading: false, error: null });
+      }
+    } catch {
+      set({
+        user: null,
+        isVerified: false,
+        isLoading: false,
+        error: "network-error",
+      });
+    }
+  },
 
-  setLoading: (loading) => set({ isLoading: loading }),
+  logout: async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Continue with client-side cleanup regardless
+    }
+    set({ user: null, isVerified: false, isLoading: false, error: null });
+  },
+
+  setUser: (user) =>
+    set({ user, isVerified: true, isLoading: false, error: null }),
+
+  setLoading: (isLoading) => set({ isLoading }),
 
   setError: (error) => set({ error, isLoading: false, isVerified: false }),
-
-  reset: () => {
-    sessionStorage.removeItem(SESSION_TOKEN_KEY);
-    set({
-      tenantId: null,
-      imapUser: null,
-      isVerified: false,
-      isLoading: false,
-      error: null,
-    });
-  },
 }));
-
-export function getTenantId(): string {
-  return useAuthStore.getState().tenantId ?? "default";
-}

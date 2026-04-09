@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { apiHeaders } from "@/lib/api/headers";
+
 import {
   Card,
   CardContent,
@@ -45,7 +45,7 @@ export function ToneAnalysisStep({
     try {
       const response = await fetch("/api/onboarding/scan-sent", {
         method: "POST",
-        headers: apiHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...imapConfig,
           tenant_id: tenantId,

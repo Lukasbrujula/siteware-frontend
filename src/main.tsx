@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./index.css";
 import App from "./App.tsx";
-import { OnboardingView } from "./views/OnboardingView.tsx";
+import { LoginView } from "./views/LoginView.tsx";
 import { SettingsView } from "./views/SettingsView.tsx";
 
 createRoot(document.getElementById("root")!).render(
@@ -11,7 +11,7 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<App />} />
-        <Route path="/onboarding" element={<OnboardingView />} />
+        <Route path="/login" element={<LoginView />} />
         <Route path="/settings" element={<SettingsView />} />
       </Routes>
     </BrowserRouter>

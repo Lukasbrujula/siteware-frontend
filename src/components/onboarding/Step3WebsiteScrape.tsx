@@ -1,6 +1,6 @@
 import type { ChangeEvent } from "react";
 import { useState } from "react";
-import { apiHeaders } from "@/lib/api/headers";
+
 import { Loader2, AlertCircle, Globe, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,7 @@ export function Step3WebsiteScrape({
     try {
       const response = await fetch("/api/onboarding/scrape-website", {
         method: "POST",
-        headers: apiHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: url.trim() }),
       });
 

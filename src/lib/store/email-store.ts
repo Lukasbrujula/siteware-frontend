@@ -65,6 +65,14 @@ function capSlice<T>(items: readonly T[]): readonly T[] {
     : items;
 }
 
+function normalizeKeys(data: Record<string, unknown>): HydrationData {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    result[key.toLowerCase()] = value;
+  }
+  return result as HydrationData;
+}
+
 export const useEmailStore = create<EmailStore>((set, get) => ({
   // State
   spam: [],
@@ -277,7 +285,8 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
     );
   },
 
-  hydrateFromServer: (data) => {
+  hydrateFromServer: (raw) => {
+    const data = normalizeKeys(raw as unknown as Record<string, unknown>);
     set(() => ({
       spam: (data.spam ?? []) as unknown as readonly SpamAdEmail[],
       ads: (data.ad ?? []) as unknown as readonly SpamAdEmail[],
@@ -290,7 +299,8 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
     }));
   },
 
-  mergeFromServer: (data) => {
+  mergeFromServer: (raw) => {
+    const data = normalizeKeys(raw as unknown as Record<string, unknown>);
     let added = 0;
 
     function mergeSlice<T extends { readonly email_id: string }>(

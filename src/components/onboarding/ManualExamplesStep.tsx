@@ -1,6 +1,6 @@
 import type { ChangeEvent } from "react";
 import { useState } from "react";
-import { apiHeaders } from "@/lib/api/headers";
+
 import {
   Card,
   CardContent,
@@ -53,7 +53,7 @@ export function ManualExamplesStep({
     try {
       const response = await fetch("/api/onboarding/manual-profile", {
         method: "POST",
-        headers: apiHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tenant_id: tenantId,
           example_emails: emails.map((e) => e.trim()),

@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { Loader2, Save, Check, AlertCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { apiHeaders } from "@/lib/api/headers";
-import { getTenantId } from "@/lib/store/auth-store";
 import type {
   ToneProfile,
   Anrede,
@@ -112,7 +110,6 @@ function TagInput({
 }
 
 export function ToneSettingsPanel() {
-  const tenantId = getTenantId();
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState("");
@@ -131,21 +128,11 @@ export function ToneSettingsPanel() {
   );
 
   useEffect(() => {
-    if (tenantId === "default") {
-      setLoadState("error");
-      return;
-    }
-
     async function load() {
       try {
         const [profileRes, tenantRes] = await Promise.all([
-          fetch(`/api/tone-profile/${encodeURIComponent(tenantId)}`, {
-            headers: apiHeaders(),
-          }),
-          fetch(
-            `/api/onboarding/tenant?tenant_id=${encodeURIComponent(tenantId)}`,
-            { headers: apiHeaders() },
-          ),
+          fetch("/api/tone-profile"),
+          fetch("/api/onboarding/tenant"),
         ]);
 
         if (!profileRes.ok) {
@@ -176,7 +163,7 @@ export function ToneSettingsPanel() {
     }
 
     load();
-  }, [tenantId]);
+  }, []);
 
   const handleSave = useCallback(async () => {
     if (!originalProfile) return;
@@ -200,16 +187,15 @@ export function ToneSettingsPanel() {
 
     try {
       const [profileRes, sigRes] = await Promise.all([
-        fetch(`/api/tone-profile/${encodeURIComponent(tenantId)}`, {
+        fetch("/api/tone-profile", {
           method: "PUT",
-          headers: apiHeaders({ "Content-Type": "application/json" }),
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(updatedProfile),
         }),
         fetch("/api/onboarding/update-signature", {
           method: "POST",
-          headers: apiHeaders({ "Content-Type": "application/json" }),
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            tenant_id: tenantId,
             email_signature: state.signature,
           }),
         }),
@@ -231,7 +217,7 @@ export function ToneSettingsPanel() {
       setSaveState("error");
       setSaveError("Netzwerkfehler — Server nicht erreichbar");
     }
-  }, [originalProfile, state, tenantId]);
+  }, [originalProfile, state]);
 
   function toggleSprachstil(value: Sprachstil) {
     setState((prev) => {
