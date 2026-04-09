@@ -28,17 +28,34 @@ function mapBackendEmail(raw: RawEmail): RawEmail {
 export function mapBackendResponse(
   data: Record<string, unknown[]>,
 ): Record<string, unknown[]> {
-  const result: Record<string, unknown[]> = {};
-  for (const [key, emails] of Object.entries(data)) {
-    result[key] = Array.isArray(emails)
-      ? emails.map((e) =>
-          typeof e === "object" && e !== null
-            ? mapBackendEmail(e as RawEmail)
-            : e,
-        )
-      : emails;
+  console.log(
+    "[mapBackendResponse] input keys:",
+    Object.keys(data),
+    "raw data:",
+    data,
+  );
+  try {
+    const result: Record<string, unknown[]> = {};
+    for (const [key, emails] of Object.entries(data)) {
+      result[key] = Array.isArray(emails)
+        ? emails.map((e) =>
+            typeof e === "object" && e !== null
+              ? mapBackendEmail(e as RawEmail)
+              : e,
+          )
+        : emails;
+    }
+    console.log(
+      "[mapBackendResponse] output keys:",
+      Object.keys(result),
+      "mapped data:",
+      result,
+    );
+    return result;
+  } catch (error) {
+    console.error("[mapBackendResponse] mapping failed:", error);
+    return data;
   }
-  return result;
 }
 
 export async function refreshStoreFromServer(): Promise<void> {
