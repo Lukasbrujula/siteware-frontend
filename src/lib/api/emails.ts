@@ -2,6 +2,15 @@ import { useEmailStore } from "@/lib/store/email-store";
 
 type RawEmail = Record<string, unknown>;
 
+const CATEGORY_KEYS = new Set([
+  "spam",
+  "ad",
+  "urgent",
+  "other",
+  "escalation",
+  "unsubscribe",
+]);
+
 function mapBackendEmail(raw: RawEmail): RawEmail {
   const fromAddress = (raw.from_address as string) ?? "";
   const senderEmail =
@@ -12,67 +21,139 @@ function mapBackendEmail(raw: RawEmail): RawEmail {
     ? senderEmail.split("@")[1]
     : "";
 
+  const draftPlain =
+    (raw.draft_plain as string | undefined) ??
+    (raw.draft_text as string | undefined) ??
+    (raw.draft_content as string | undefined) ??
+    "";
+  const draftHtml =
+    (raw.draft_html as string | undefined) ??
+    (raw.draft_body as string | undefined) ??
+    draftPlain;
+  const originalPreview =
+    (raw.original_preview as string | undefined) ??
+    (raw.preview as string | undefined) ??
+    (raw.snippet as string | undefined) ??
+    "";
+  const originalSubject =
+    (raw.original_subject as string | undefined) ??
+    (raw.subject as string | undefined) ??
+    "";
+
   return {
     ...raw,
     email_id: raw.email_id ?? raw.id,
     sender_email: senderEmail,
     sender_name: senderName,
     sender_domain: senderDomain,
-    body_plain: raw.body_plain ?? raw.body,
+    body_plain: raw.body_plain ?? raw.body ?? "",
     category: raw.category ?? raw.classification,
-    date: raw.date ?? raw.received_at,
-    timestamp: raw.timestamp ?? raw.received_at,
+    date: raw.date ?? raw.received_at ?? new Date().toISOString(),
+    timestamp: raw.timestamp ?? raw.received_at ?? new Date().toISOString(),
+    draft_plain: draftPlain,
+    draft_html: draftHtml,
+    original_preview: originalPreview,
+    original_subject: originalSubject,
+    subject: (raw.subject as string | undefined) ?? originalSubject,
+    confidence: raw.confidence ?? raw.score ?? 0,
+    reply_language: raw.reply_language ?? raw.language ?? "de",
+    placeholders: raw.placeholders ?? [],
+    is_escalated: raw.is_escalated ?? false,
+    sentiment_score: raw.sentiment_score ?? 0,
+    review_reason: raw.review_reason ?? "",
   };
 }
 
-export function mapBackendResponse(
-  data: Record<string, unknown[]>,
+/**
+ * If the backend returns a flat array of emails (each with a classification/category field),
+ * group them into the category-keyed shape the store expects.
+ */
+function groupFlatArray(
+  emails: readonly RawEmail[],
 ): Record<string, unknown[]> {
-  console.log(
-    "[mapBackendResponse] input keys:",
-    Object.keys(data),
-    "raw data:",
-    data,
-  );
-  try {
-    const result: Record<string, unknown[]> = {};
-    for (const [key, emails] of Object.entries(data)) {
-      result[key] = Array.isArray(emails)
-        ? emails.map((e) =>
-            typeof e === "object" && e !== null
-              ? mapBackendEmail(e as RawEmail)
-              : e,
-          )
-        : emails;
-    }
-    console.log(
-      "[mapBackendResponse] output keys:",
-      Object.keys(result),
-      "mapped data:",
-      result,
-    );
-    return result;
-  } catch (error) {
-    console.error("[mapBackendResponse] mapping failed:", error);
-    return data;
+  const grouped: Record<string, unknown[]> = {};
+  for (const email of emails) {
+    const cat = (
+      (email.classification as string) ??
+      (email.category as string) ??
+      ""
+    )
+      .toLowerCase()
+      .replace("unsub", "unsubscribe");
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(email);
   }
+  return grouped;
+}
+
+/**
+ * Normalise whatever shape the backend returns into
+ * `{ spam: [...], ad: [...], urgent: [...], other: [...], escalation: [...], unsubscribe: [...] }`.
+ */
+function normaliseResponseData(raw: unknown): Record<string, unknown[]> {
+  // Already grouped by category keys
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const obj = raw as Record<string, unknown>;
+    const lowerKeys = Object.keys(obj).map((k) => k.toLowerCase());
+    const hasCategoryKeys = lowerKeys.some((k) => CATEGORY_KEYS.has(k));
+    if (hasCategoryKeys) {
+      // Looks like { SPAM: [...], OTHER: [...] } or { spam: [...], other: [...] }
+      const result: Record<string, unknown[]> = {};
+      for (const [key, value] of Object.entries(obj)) {
+        result[key.toLowerCase()] = Array.isArray(value) ? value : [];
+      }
+      return result;
+    }
+
+    // Might be { emails: [...] } or { data: [...] } — look for nested array
+    for (const value of Object.values(obj)) {
+      if (
+        Array.isArray(value) &&
+        value.length > 0 &&
+        typeof value[0] === "object"
+      ) {
+        return groupFlatArray(value as RawEmail[]);
+      }
+    }
+  }
+
+  // Flat array at top level
+  if (Array.isArray(raw)) {
+    return groupFlatArray(raw as RawEmail[]);
+  }
+
+  return {};
+}
+
+export function mapBackendResponse(data: unknown): Record<string, unknown[]> {
+  const normalised = normaliseResponseData(data);
+  const result: Record<string, unknown[]> = {};
+  for (const [key, emails] of Object.entries(normalised)) {
+    result[key] = Array.isArray(emails)
+      ? emails.map((e) =>
+          typeof e === "object" && e !== null
+            ? mapBackendEmail(e as RawEmail)
+            : e,
+        )
+      : [];
+  }
+  return result;
 }
 
 export async function refreshStoreFromServer(): Promise<void> {
-  console.log("[refreshStoreFromServer] called");
   const response = await fetch("/api/emails", {
     headers: { "Cache-Control": "no-cache" },
     signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) return;
 
-  const json = (await response.json()) as {
-    success: boolean;
-    data: Record<string, unknown[]>;
-  };
-  if (!json.success) return;
+  const json = (await response.json()) as Record<string, unknown>;
 
-  useEmailStore.getState().hydrateFromServer(mapBackendResponse(json.data));
+  // Accept { success: true, data: ... } or just { data: ... } or raw data
+  const payload = json.data ?? json;
+  if (json.success === false) return;
+
+  useEmailStore.getState().hydrateFromServer(mapBackendResponse(payload));
 }
 
 export class ServerApiError extends Error {

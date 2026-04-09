@@ -58,7 +58,7 @@ export function DraftReviewView({ title, slice }: DraftReviewViewProps) {
   // Sync draft content when selecting a new email
   useEffect(() => {
     if (selectedEmail) {
-      const draft = selectedEmail.draft_plain;
+      const draft = selectedEmail.draft_plain ?? "";
       const hasSignature =
         /\[SIGNATUR EINFÜGEN\]/i.test(draft) ||
         /^--\s*$/m.test(draft) ||

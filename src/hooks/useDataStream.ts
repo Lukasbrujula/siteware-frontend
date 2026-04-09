@@ -18,39 +18,34 @@ const POLL_INTERVAL_MS = 20_000;
 const MAX_STALE_POLLS = 15; // 15 × 20s = 5 min
 const SYNC_INDICATOR_MS = 60_000;
 
-type ApiResponse = {
-  success: boolean;
-  data: Record<string, unknown[]>;
-};
-
-async function fetchEmails(): Promise<ApiResponse | null> {
+async function fetchAndMap(): Promise<Record<string, unknown[]> | null> {
   try {
     const response = await fetch(EMAILS_URL, {
       headers: { "Cache-Control": "no-cache" },
     });
     if (!response.ok) return null;
 
-    const json = (await response.json()) as ApiResponse;
-    return json.success ? json : null;
+    const json = (await response.json()) as Record<string, unknown>;
+    if (json.success === false) return null;
+
+    const payload = json.data ?? json;
+    return mapBackendResponse(payload);
   } catch {
     return null;
   }
 }
 
 async function hydrateFromApi(): Promise<void> {
-  console.log("[hydrateFromApi] called");
-  const json = await fetchEmails();
-  if (json) {
-    useEmailStore.getState().hydrateFromServer(mapBackendResponse(json.data));
+  const mapped = await fetchAndMap();
+  if (mapped) {
+    useEmailStore.getState().hydrateFromServer(mapped);
   }
 }
 
 async function pollForUpdates(): Promise<boolean> {
-  const json = await fetchEmails();
-  if (!json) return false;
-  return useEmailStore
-    .getState()
-    .mergeFromServer(mapBackendResponse(json.data));
+  const mapped = await fetchAndMap();
+  if (!mapped) return false;
+  return useEmailStore.getState().mergeFromServer(mapped);
 }
 
 export function useDataStream(

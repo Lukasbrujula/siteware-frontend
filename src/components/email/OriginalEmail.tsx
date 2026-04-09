@@ -56,7 +56,7 @@ function formatDate(dateString: string): string {
 }
 
 export function OriginalEmail({ email }: OriginalEmailProps) {
-  const rawContent = email.body_plain ?? email.original_preview;
+  const rawContent = email.body_plain ?? email.original_preview ?? "";
   const cleanPreview = useMemo(
     () => cleanEmailPreview(rawContent),
     [rawContent],
