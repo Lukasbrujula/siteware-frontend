@@ -59,6 +59,7 @@ export function mapBackendResponse(
 }
 
 export async function refreshStoreFromServer(): Promise<void> {
+  console.log("[refreshStoreFromServer] called");
   const response = await fetch("/api/emails", {
     headers: { "Cache-Control": "no-cache" },
     signal: AbortSignal.timeout(10_000),

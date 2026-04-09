@@ -38,6 +38,7 @@ async function fetchEmails(): Promise<ApiResponse | null> {
 }
 
 async function hydrateFromApi(): Promise<void> {
+  console.log("[hydrateFromApi] called");
   const json = await fetchEmails();
   if (json) {
     useEmailStore.getState().hydrateFromServer(mapBackendResponse(json.data));
