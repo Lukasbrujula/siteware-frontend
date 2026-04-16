@@ -29,7 +29,16 @@ type Step1CredentialsProps = {
 
 type TestState = "idle" | "testing" | "success" | "error";
 
-type ProviderId = "gmail" | "outlook" | "icloud" | "yahoo" | "custom";
+type ProviderId =
+  | "gmail"
+  | "outlook"
+  | "icloud"
+  | "yahoo"
+  | "gmx"
+  | "webde"
+  | "ionos"
+  | "tonline"
+  | "custom";
 
 type ProviderConfig = {
   readonly id: ProviderId;
@@ -89,6 +98,42 @@ const PROVIDERS: readonly ProviderConfig[] = [
     helpLinkLabel: "App-Passwort erstellen",
   },
   {
+    id: "gmx",
+    label: "GMX",
+    imapHost: "imap.gmx.net",
+    imapPort: "993",
+    smtpHost: "mail.gmx.net",
+    smtpPort: "587",
+    helpText: "Bitte IMAP-Passwort Ihres GMX-Kontos verwenden.",
+  },
+  {
+    id: "webde",
+    label: "Web.de",
+    imapHost: "imap.web.de",
+    imapPort: "993",
+    smtpHost: "smtp.web.de",
+    smtpPort: "587",
+    helpText: "Bitte IMAP-Passwort Ihres Web.de-Kontos verwenden.",
+  },
+  {
+    id: "ionos",
+    label: "IONOS (1&1)",
+    imapHost: "imap.ionos.de",
+    imapPort: "993",
+    smtpHost: "smtp.ionos.de",
+    smtpPort: "587",
+    helpText: "Bitte IMAP-Passwort Ihres IONOS-Kontos verwenden.",
+  },
+  {
+    id: "tonline",
+    label: "T-Online",
+    imapHost: "secureimap.t-online.de",
+    imapPort: "993",
+    smtpHost: "securesmtp.t-online.de",
+    smtpPort: "465",
+    helpText: "Bitte IMAP-Passwort Ihres T-Online-Kontos verwenden.",
+  },
+  {
     id: "custom",
     label: "Andere",
     imapHost: "",
@@ -100,7 +145,7 @@ const PROVIDERS: readonly ProviderConfig[] = [
 ] as const;
 
 function getProviderById(id: ProviderId): ProviderConfig {
-  return PROVIDERS.find((p) => p.id === id) ?? PROVIDERS[4];
+  return PROVIDERS.find((p) => p.id === id) ?? PROVIDERS[8];
 }
 
 export function Step1Credentials({ onUpdate, onNext }: Step1CredentialsProps) {
@@ -199,7 +244,7 @@ export function Step1Credentials({ onUpdate, onNext }: Step1CredentialsProps) {
       {/* Provider selector */}
       <div className="mb-6">
         <Label className="mb-2 block">E-Mail-Anbieter</Label>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
           {PROVIDERS.map((p) => (
             <button
               key={p.id}
