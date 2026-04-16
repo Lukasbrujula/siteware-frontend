@@ -1,5 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { Step1Credentials } from "@/components/onboarding/Step1Credentials";
 import { Step2Siteware } from "@/components/onboarding/Step2Siteware";
 import { Step2ScanSent } from "@/components/onboarding/Step2ScanSent";
@@ -61,6 +64,33 @@ const STEP_LABELS: readonly string[] = [
 ];
 
 export function OnboardingView() {
+  const navigate = useNavigate();
+  const checkAuthCalled = useRef(false);
+  const isVerified = useAuthStore((s) => s.isVerified);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const user = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    if (checkAuthCalled.current) return;
+    checkAuthCalled.current = true;
+    // Skip if App.tsx already resolved auth (e.g. navigating from /)
+    const { isVerified, isLoading } = useAuthStore.getState();
+    if (!isVerified && !isLoading) {
+      void useAuthStore.getState().checkAuth();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!isVerified) {
+      navigate("/login", { replace: true });
+      return;
+    }
+    if (user?.role?.toLowerCase() !== "admin") {
+      navigate("/", { replace: true });
+    }
+  }, [isLoading, isVerified, user, navigate]);
+
   const [currentStep, setCurrentStep] = useState(1);
   const [state, setState] = useState<OnboardingState>({
     credentials: null,
@@ -82,6 +112,18 @@ export function OnboardingView() {
   const goToStep = useCallback((step: number) => {
     setCurrentStep(step);
   }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f8f9fa]">
+        <Loader2 className="size-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (!isVerified || user?.role?.toLowerCase() !== "admin") {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f8f9fa]">

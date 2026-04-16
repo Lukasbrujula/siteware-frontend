@@ -1,8 +1,10 @@
 import { create } from "zustand";
 
 type User = {
+  readonly id?: string;
   readonly email: string;
   readonly name?: string;
+  readonly role?: string;
 };
 
 type AuthState = {
@@ -33,7 +35,22 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const response = await fetch("/api/auth/me");
       if (response.ok) {
-        const data = (await response.json()) as User;
+        const json = (await response.json()) as Record<string, unknown>;
+        if (typeof json.email !== "string") {
+          set({
+            user: null,
+            isVerified: false,
+            isLoading: false,
+            error: "invalid-response",
+          });
+          return;
+        }
+        const data: User = {
+          id: typeof json.id === "string" ? json.id : undefined,
+          email: json.email,
+          name: typeof json.name === "string" ? json.name : undefined,
+          role: typeof json.role === "string" ? json.role : undefined,
+        };
         set({ user: data, isVerified: true, isLoading: false, error: null });
       } else {
         set({ user: null, isVerified: false, isLoading: false, error: null });

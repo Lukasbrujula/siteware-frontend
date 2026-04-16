@@ -1,13 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { OnboardingView } from "./OnboardingView";
+import { useAuthStore } from "@/lib/store/auth-store";
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
   Toaster: () => null,
 }));
+
+const ADMIN_USER = {
+  user: { id: "1", email: "admin@test.com", role: "admin" },
+  isVerified: true,
+  isLoading: false,
+  error: null,
+};
 
 function renderWithRouter() {
   return render(
@@ -20,37 +28,46 @@ function renderWithRouter() {
 describe("OnboardingView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useAuthStore.setState(ADMIN_USER);
   });
 
-  it("renders step 1 (connection) by default", () => {
+  afterEach(() => {
+    useAuthStore.setState({
+      user: null,
+      isVerified: false,
+      isLoading: true,
+      error: null,
+    });
+  });
+
+  it("renders step 1 (credentials) by default", () => {
     renderWithRouter();
     expect(
-      screen.getByText("Schritt 1 von 3 — Verbindung"),
+      screen.getByText("Schritt 1 von 6 — Zugangsdaten"),
     ).toBeInTheDocument();
-    expect(screen.getByText("IMAP-Verbindung einrichten")).toBeInTheDocument();
+    expect(screen.getByText("E-Mail-Verbindung")).toBeInTheDocument();
   });
 
-  it("renders IMAP form fields", () => {
+  it("renders IMAP/SMTP form fields", () => {
     renderWithRouter();
-    expect(screen.getByLabelText("IMAP-Host")).toBeInTheDocument();
-    expect(screen.getByLabelText("Port")).toBeInTheDocument();
-    expect(screen.getByLabelText("Benutzername / E-Mail")).toBeInTheDocument();
+    expect(screen.getByLabelText("E-Mail-Adresse")).toBeInTheDocument();
     expect(screen.getByLabelText("Passwort")).toBeInTheDocument();
+    expect(screen.getByLabelText("IMAP Host")).toBeInTheDocument();
+    expect(screen.getByLabelText("SMTP Host")).toBeInTheDocument();
   });
 
-  it("disables test button when form is empty", () => {
+  it("disables test button when email and password are empty", () => {
     renderWithRouter();
     const button = screen.getByRole("button", { name: /Verbindung testen/i });
     expect(button).toBeDisabled();
   });
 
-  it("enables test button when required fields are filled", async () => {
+  it("enables test button when email and password are filled (provider pre-fills hosts)", async () => {
     const user = userEvent.setup();
     renderWithRouter();
 
-    await user.type(screen.getByLabelText("IMAP-Host"), "imap.example.com");
     await user.type(
-      screen.getByLabelText("Benutzername / E-Mail"),
+      screen.getByLabelText("E-Mail-Adresse"),
       "test@example.com",
     );
     await user.type(screen.getByLabelText("Passwort"), "secret");
@@ -67,9 +84,8 @@ describe("OnboardingView", () => {
 
     renderWithRouter();
 
-    await user.type(screen.getByLabelText("IMAP-Host"), "imap.example.com");
     await user.type(
-      screen.getByLabelText("Benutzername / E-Mail"),
+      screen.getByLabelText("E-Mail-Adresse"),
       "test@example.com",
     );
     await user.type(screen.getByLabelText("Passwort"), "secret");
@@ -83,7 +99,7 @@ describe("OnboardingView", () => {
   it("shows success and Weiter button on successful connection test", async () => {
     const user = userEvent.setup();
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({ success: true, folder: "Sent" }), {
+      new Response(JSON.stringify({ success: true }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
@@ -91,9 +107,8 @@ describe("OnboardingView", () => {
 
     renderWithRouter();
 
-    await user.type(screen.getByLabelText("IMAP-Host"), "imap.example.com");
     await user.type(
-      screen.getByLabelText("Benutzername / E-Mail"),
+      screen.getByLabelText("E-Mail-Adresse"),
       "test@example.com",
     );
     await user.type(screen.getByLabelText("Passwort"), "secret");
@@ -104,14 +119,13 @@ describe("OnboardingView", () => {
     expect(
       await screen.findByText(/Verbindung erfolgreich/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Gesendet-Ordner: Sent/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Weiter" })).toBeInTheDocument();
   });
 
-  it("transitions to step 2 (analysis) after clicking Weiter", async () => {
+  it("transitions to step 2 (Siteware config) after clicking Weiter", async () => {
     const user = userEvent.setup();
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({ success: true, folder: "Sent" }), {
+      new Response(JSON.stringify({ success: true }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
@@ -119,9 +133,8 @@ describe("OnboardingView", () => {
 
     renderWithRouter();
 
-    await user.type(screen.getByLabelText("IMAP-Host"), "imap.example.com");
     await user.type(
-      screen.getByLabelText("Benutzername / E-Mail"),
+      screen.getByLabelText("E-Mail-Adresse"),
       "test@example.com",
     );
     await user.type(screen.getByLabelText("Passwort"), "secret");
@@ -132,8 +145,7 @@ describe("OnboardingView", () => {
     await screen.findByText(/Verbindung erfolgreich/);
     await user.click(screen.getByRole("button", { name: "Weiter" }));
 
-    expect(screen.getByText("Schritt 2 von 3 — Analyse")).toBeInTheDocument();
-    expect(screen.getByText("Tonprofil-Analyse")).toBeInTheDocument();
+    expect(screen.getByText("Schritt 2 von 6 — Siteware")).toBeInTheDocument();
   });
 
   it("shows API error message from test-connection", async () => {
@@ -150,9 +162,8 @@ describe("OnboardingView", () => {
 
     renderWithRouter();
 
-    await user.type(screen.getByLabelText("IMAP-Host"), "imap.example.com");
     await user.type(
-      screen.getByLabelText("Benutzername / E-Mail"),
+      screen.getByLabelText("E-Mail-Adresse"),
       "test@example.com",
     );
     await user.type(screen.getByLabelText("Passwort"), "secret");
@@ -161,5 +172,29 @@ describe("OnboardingView", () => {
     );
 
     expect(await screen.findByText("Invalid credentials")).toBeInTheDocument();
+  });
+
+  it("shows loading spinner and blocks wizard while auth check is in flight", () => {
+    useAuthStore.setState({
+      user: null,
+      isVerified: false,
+      isLoading: true,
+      error: null,
+    });
+    renderWithRouter();
+    expect(
+      screen.queryByText("Schritt 1 von 6 — Zugangsdaten"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders nothing when user is authenticated but not admin", () => {
+    useAuthStore.setState({
+      user: { id: "2", email: "viewer@test.com", role: "user" },
+      isVerified: true,
+      isLoading: false,
+      error: null,
+    });
+    const { container } = renderWithRouter();
+    expect(container).toBeEmptyDOMElement();
   });
 });
