@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { Step1Credentials } from "@/components/onboarding/Step1Credentials";
+import { Step2Siteware } from "@/components/onboarding/Step2Siteware";
 import { Step2ScanSent } from "@/components/onboarding/Step2ScanSent";
 import { Step3WebsiteScrape } from "@/components/onboarding/Step3WebsiteScrape";
 import { Step4ToneAnalysis } from "@/components/onboarding/Step4ToneAnalysis";
@@ -14,6 +15,12 @@ type OnboardingState = {
     readonly imapPort: number;
     readonly smtpHost: string;
     readonly smtpPort: number;
+  } | null;
+  readonly sitewareConfig: {
+    readonly token: string;
+    readonly triageAgentId: string;
+    readonly replyAgentId: string;
+    readonly toneAgentId: string;
   } | null;
   readonly sentScan: {
     readonly emails_scanned: number;
@@ -42,10 +49,11 @@ type OnboardingState = {
   readonly emailSignature: string;
 };
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 const STEP_LABELS: readonly string[] = [
   "Zugangsdaten",
+  "Siteware",
   "E-Mail-Scan",
   "Website",
   "Schreibstil",
@@ -56,6 +64,7 @@ export function OnboardingView() {
   const [currentStep, setCurrentStep] = useState(1);
   const [state, setState] = useState<OnboardingState>({
     credentials: null,
+    sitewareConfig: null,
     sentScan: null,
     websiteData: null,
     toneProfile: null,
@@ -109,7 +118,11 @@ export function OnboardingView() {
             <Step1Credentials onUpdate={handleUpdate} onNext={handleNext} />
           )}
 
-          {currentStep === 2 && state.credentials && (
+          {currentStep === 2 && (
+            <Step2Siteware onUpdate={handleUpdate} onNext={handleNext} />
+          )}
+
+          {currentStep === 3 && state.credentials && (
             <Step2ScanSent
               state={{ credentials: state.credentials }}
               onUpdate={handleUpdate}
@@ -117,11 +130,11 @@ export function OnboardingView() {
             />
           )}
 
-          {currentStep === 3 && (
+          {currentStep === 4 && (
             <Step3WebsiteScrape onUpdate={handleUpdate} onNext={handleNext} />
           )}
 
-          {currentStep === 4 && state.sentScan && (
+          {currentStep === 5 && state.sentScan && (
             <Step4ToneAnalysis
               state={{
                 sentScan: state.sentScan,
@@ -133,7 +146,7 @@ export function OnboardingView() {
             />
           )}
 
-          {currentStep === 5 &&
+          {currentStep === 6 &&
             state.credentials &&
             state.sentScan &&
             state.toneProfile && (
@@ -145,7 +158,7 @@ export function OnboardingView() {
                   toneProfile: state.toneProfile,
                   emailSignature: state.emailSignature,
                 }}
-                onEditTone={() => goToStep(4)}
+                onEditTone={() => goToStep(5)}
               />
             )}
         </div>
