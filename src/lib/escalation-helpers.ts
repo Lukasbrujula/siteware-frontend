@@ -1,10 +1,12 @@
 import type { EscalationAlert } from "@/types/email";
 
 export function sortBySeverity(a: EscalationAlert, b: EscalationAlert): number {
-  if (a.legal_threat !== b.legal_threat) {
-    return a.legal_threat ? -1 : 1;
+  const aLegal = a.legal_threat ?? false;
+  const bLegal = b.legal_threat ?? false;
+  if (aLegal !== bLegal) {
+    return aLegal ? -1 : 1;
   }
-  return a.sentiment_score - b.sentiment_score;
+  return (a.sentiment_score ?? 0) - (b.sentiment_score ?? 0);
 }
 
 export function formatTimestamp(timestamp: string): string {

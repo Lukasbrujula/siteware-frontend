@@ -29,12 +29,13 @@ import { sortBySeverity, formatTimestamp } from "@/lib/escalation-helpers";
 import { toast } from "sonner";
 import type { EscalationAlert } from "@/types/email";
 
-function UrgencyBadge({ urgency }: { readonly urgency: number }) {
+function UrgencyBadge({ urgency }: { readonly urgency?: number }) {
+  const level = urgency ?? 2;
   const variant =
-    urgency >= 4 ? "destructive" : urgency >= 3 ? "default" : "secondary";
+    level >= 4 ? "destructive" : level >= 3 ? "default" : "secondary";
   return (
     <Badge variant={variant} className="text-[11px]">
-      Dringlichkeit: {urgency}/5
+      Dringlichkeit: {level}/5
     </Badge>
   );
 }
@@ -166,7 +167,9 @@ function EscalationCard({ alert }: { readonly alert: EscalationAlert }) {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <SentimentBadge score={alert.sentiment_score} />
+        {alert.sentiment_score != null && (
+          <SentimentBadge score={alert.sentiment_score} />
+        )}
 
         <RiskFlags
           complaintRisk={alert.complaint_risk}
@@ -185,12 +188,14 @@ function EscalationCard({ alert }: { readonly alert: EscalationAlert }) {
           </div>
         )}
 
-        <div className="rounded-md border border-border bg-muted/50 p-3">
-          <p className="text-xs font-medium text-muted-foreground">
-            Zusammenfassung
-          </p>
-          <p className="mt-1 text-sm">{alert.summary}</p>
-        </div>
+        {alert.summary && (
+          <div className="rounded-md border border-border bg-muted/50 p-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              Zusammenfassung
+            </p>
+            <p className="mt-1 text-sm">{alert.summary}</p>
+          </div>
+        )}
 
         {/* Reply editor */}
         <div className="space-y-3 rounded-md border border-border p-3">

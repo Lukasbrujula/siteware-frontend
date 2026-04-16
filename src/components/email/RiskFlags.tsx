@@ -2,9 +2,9 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 type RiskFlagsProps = {
-  readonly complaintRisk: boolean;
-  readonly legalThreat: boolean;
-  readonly churnRisk: "low" | "medium" | "high";
+  readonly complaintRisk?: boolean;
+  readonly legalThreat?: boolean;
+  readonly churnRisk?: "low" | "medium" | "high";
 };
 
 const CHURN_CONFIG = {
@@ -27,6 +27,8 @@ export function RiskFlags({
   legalThreat,
   churnRisk,
 }: RiskFlagsProps) {
+  const churnEntry = churnRisk ? CHURN_CONFIG[churnRisk] : undefined;
+
   const flags: readonly {
     readonly key: string;
     readonly label: string;
@@ -50,12 +52,18 @@ export function RiskFlags({
           },
         ]
       : []),
-    {
-      key: "churn",
-      label: CHURN_CONFIG[churnRisk].label,
-      className: CHURN_CONFIG[churnRisk].className,
-    },
+    ...(churnEntry
+      ? [
+          {
+            key: "churn",
+            label: churnEntry.label,
+            className: churnEntry.className,
+          },
+        ]
+      : []),
   ];
+
+  if (flags.length === 0) return null;
 
   return (
     <div className="flex flex-wrap gap-1.5">

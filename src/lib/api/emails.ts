@@ -60,6 +60,36 @@ function mapBackendEmail(raw: RawEmail): RawEmail {
     (raw.subject as string | undefined) ??
     "";
 
+  // Map string urgency ("low"/"normal"/"high"/"critical") to numeric (1-5)
+  const urgencyMap: Record<string, number> = {
+    low: 1,
+    normal: 2,
+    high: 3,
+    critical: 5,
+  };
+  const rawUrgency = raw.urgency;
+  const urgency =
+    typeof rawUrgency === "number"
+      ? rawUrgency
+      : typeof rawUrgency === "string"
+        ? (urgencyMap[rawUrgency.toLowerCase()] ?? 2)
+        : 2;
+
+  // Map string sentiment to numeric score (-1 to 1)
+  const sentimentMap: Record<string, number> = {
+    hostile: -1,
+    negative: -0.5,
+    neutral: 0,
+    positive: 0.5,
+  };
+  const rawSentiment = raw.sentiment as string | undefined;
+  const sentimentScore =
+    typeof raw.sentiment_score === "number"
+      ? raw.sentiment_score
+      : typeof rawSentiment === "string"
+        ? (sentimentMap[rawSentiment.toLowerCase()] ?? 0)
+        : 0;
+
   return {
     ...raw,
     email_id: raw.email_id ?? raw.id,
@@ -79,8 +109,17 @@ function mapBackendEmail(raw: RawEmail): RawEmail {
     reply_language: raw.reply_language ?? raw.language ?? "de",
     placeholders: raw.placeholders ?? [],
     is_escalated: raw.is_escalated ?? false,
-    sentiment_score: raw.sentiment_score ?? 0,
+    sentiment_score: sentimentScore,
     review_reason: raw.review_reason ?? "",
+    urgency,
+    complaint_risk: raw.complaint_risk ?? false,
+    legal_threat: raw.legal_threat ?? false,
+    churn_risk: raw.churn_risk ?? "low",
+    summary:
+      (raw.summary as string | undefined) ??
+      (raw.escalation_reason as string | undefined) ??
+      "",
+    escalation_reason: raw.escalation_reason ?? "",
   };
 }
 
