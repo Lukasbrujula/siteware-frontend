@@ -114,7 +114,7 @@ function mapBackendEmail(raw: RawEmail): RawEmail {
     urgency,
     complaint_risk: raw.complaint_risk ?? false,
     legal_threat: raw.legal_threat ?? false,
-    churn_risk: raw.churn_risk ?? "low",
+    churn_risk: raw.churn_risk ?? undefined,
     summary:
       (raw.summary as string | undefined) ??
       (raw.escalation_reason as string | undefined) ??

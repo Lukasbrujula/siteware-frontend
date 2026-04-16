@@ -177,13 +177,13 @@ function EscalationCard({ alert }: { readonly alert: EscalationAlert }) {
           churnRisk={alert.churn_risk}
         />
 
-        {(alert.body_plain ?? alert.preview) && (
+        {(alert.body_plain || alert.preview) && (
           <div className="rounded-md border border-border bg-muted/50 p-3">
             <p className="text-xs font-medium text-muted-foreground">
               Originalmail
             </p>
             <p className="mt-1 whitespace-pre-wrap text-sm">
-              {alert.body_plain ?? alert.preview}
+              {alert.body_plain || alert.preview}
             </p>
           </div>
         )}
