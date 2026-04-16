@@ -29,6 +29,18 @@ afterEach(() => {
 });
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function okJson(body: Record<string, unknown> = {}) {
+  return { ok: true, status: 200, json: () => Promise.resolve(body) };
+}
+
+function failJson(status: number, body: Record<string, unknown> = {}) {
+  return { ok: false, status, json: () => Promise.resolve(body) };
+}
+
+// ---------------------------------------------------------------------------
 // Factories
 // ---------------------------------------------------------------------------
 
@@ -56,64 +68,97 @@ const retriagePayload: RetriagePayload = {
 const unsubscribePayload: UnsubscribePayload = {
   email_id: "email-001",
   sender_email: "newsletter@example.com",
+  list_unsubscribe_url: "https://example.com/unsub",
+  list_unsubscribe_mailto: null,
 };
 
 // ===========================================================================
-// URL paths — now proxied via /api/webhooks/[action]
+// URL paths — routed via /api/emails/:id/:action
 // ===========================================================================
 
-describe("webhook URL paths", () => {
+describe("endpoint URL paths", () => {
   beforeEach(() => {
-    fetchMock.mockResolvedValue({ ok: true });
+    fetchMock.mockResolvedValue(okJson());
   });
 
-  it("approveDraft posts to /api/webhooks/approve", async () => {
+  it("approveDraft PATCHes /api/emails/:id/draft then POSTs /api/emails/:id/send", async () => {
     await approveDraft(approvePayload);
-    expect(fetchMock).toHaveBeenCalledOnce();
-    const url = fetchMock.mock.calls[0][0] as string;
-    expect(url).toBe("/api/webhooks/approve");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/emails/email-001/draft");
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/emails/email-001/send");
   });
 
-  it("rejectDraft posts to /api/webhooks/reject", async () => {
+  it("rejectDraft posts to /api/emails/:id/reject", async () => {
     await rejectDraft(rejectPayload);
-    const url = fetchMock.mock.calls[0][0] as string;
-    expect(url).toBe("/api/webhooks/reject");
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/emails/email-001/reject");
   });
 
-  it("retriage posts to /api/webhooks/retriage", async () => {
+  it("retriage posts to /api/emails/:id/retriage", async () => {
     await retriage(retriagePayload);
-    const url = fetchMock.mock.calls[0][0] as string;
-    expect(url).toBe("/api/webhooks/retriage");
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/emails/email-001/retriage");
   });
 
-  it("unsubscribe posts to /api/webhooks/unsubscribe", async () => {
+  it("unsubscribe posts to /api/emails/:id/unsubscribe", async () => {
     await unsubscribe(unsubscribePayload);
-    const url = fetchMock.mock.calls[0][0] as string;
-    expect(url).toBe("/api/webhooks/unsubscribe");
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "/api/emails/email-001/unsubscribe",
+    );
   });
 });
 
 // ===========================================================================
-// JSON body
+// Request methods and bodies
 // ===========================================================================
 
-describe("webhook JSON body", () => {
+describe("request methods and bodies", () => {
   beforeEach(() => {
-    fetchMock.mockResolvedValue({ ok: true });
+    fetchMock.mockResolvedValue(okJson());
   });
 
-  it("sends correct JSON body for approveDraft", async () => {
+  it("approveDraft step 1 PATCHes draft_reply", async () => {
     await approveDraft(approvePayload);
-    const options = fetchMock.mock.calls[0][1] as RequestInit;
-    expect(options.method).toBe("POST");
-    expect(options.headers).toEqual({ "Content-Type": "application/json" });
-    expect(JSON.parse(options.body as string)).toEqual(approvePayload);
+    const opts = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(opts.method).toBe("PATCH");
+    expect(JSON.parse(opts.body as string)).toEqual({
+      draft_reply: "Reply",
+    });
   });
 
-  it("sends correct JSON body for retriage", async () => {
+  it("approveDraft step 2 POSTs send with no body", async () => {
+    await approveDraft(approvePayload);
+    const opts = fetchMock.mock.calls[1][1] as RequestInit;
+    expect(opts.method).toBe("POST");
+  });
+
+  it("rejectDraft sends reason in body", async () => {
+    await rejectDraft(rejectPayload);
+    const opts = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(opts.method).toBe("POST");
+    expect(JSON.parse(opts.body as string)).toEqual({
+      reason: "Poor quality",
+    });
+  });
+
+  it("retriage sends payload fields in body", async () => {
     await retriage(retriagePayload);
-    const options = fetchMock.mock.calls[0][1] as RequestInit;
-    expect(JSON.parse(options.body as string)).toEqual(retriagePayload);
+    const opts = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(opts.method).toBe("POST");
+    expect(JSON.parse(opts.body as string)).toEqual({
+      sender_email: "sender@example.com",
+      subject: "Subject",
+      original_category: "SPAM",
+    });
+  });
+
+  it("unsubscribe sends payload fields in body", async () => {
+    await unsubscribe(unsubscribePayload);
+    const opts = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(opts.method).toBe("POST");
+    expect(JSON.parse(opts.body as string)).toEqual({
+      sender_email: "newsletter@example.com",
+      list_unsubscribe_url: "https://example.com/unsub",
+      list_unsubscribe_mailto: null,
+    });
   });
 });
 
@@ -121,19 +166,43 @@ describe("webhook JSON body", () => {
 // Success / failure responses
 // ===========================================================================
 
-describe("webhook response handling", () => {
-  it("resolves on 200 response", async () => {
-    fetchMock.mockResolvedValue({ ok: true });
-    await expect(approveDraft(approvePayload)).resolves.toBeUndefined();
+describe("response handling", () => {
+  it("approveDraft resolves with warning when present", async () => {
+    fetchMock.mockResolvedValue(
+      okJson({ message: "sent", warning: "Placeholders detected" }),
+    );
+    const result = await approveDraft(approvePayload);
+    expect(result).toEqual({ warning: "Placeholders detected" });
   });
 
-  it("throws WebhookError on 400 response", async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 400 });
+  it("approveDraft resolves without warning when absent", async () => {
+    fetchMock.mockResolvedValue(okJson({ message: "sent" }));
+    const result = await approveDraft(approvePayload);
+    expect(result).toEqual({ warning: undefined });
+  });
+
+  it("approveDraft throws if PATCH (step 1) fails", async () => {
+    fetchMock.mockResolvedValueOnce(failJson(400, { error: "Invalid draft" }));
+    await expect(approveDraft(approvePayload)).rejects.toThrow(WebhookError);
+    // Only one fetch call — step 2 should not run
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("approveDraft throws if POST send (step 2) fails", async () => {
+    fetchMock
+      .mockResolvedValueOnce(okJson())
+      .mockResolvedValueOnce(failJson(422, { error: "Placeholders remain" }));
+    await expect(approveDraft(approvePayload)).rejects.toThrow(WebhookError);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejectDraft throws WebhookError on failure", async () => {
+    fetchMock.mockResolvedValue(failJson(400, { error: "Bad request" }));
     await expect(rejectDraft(rejectPayload)).rejects.toThrow(WebhookError);
   });
 
-  it("throws WebhookError on 500 response", async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 500 });
+  it("retriage throws WebhookError with correct properties on 500", async () => {
+    fetchMock.mockResolvedValue(failJson(500));
     try {
       await retriage(retriagePayload);
       expect.fail("Should have thrown");
@@ -141,12 +210,25 @@ describe("webhook response handling", () => {
       expect(err).toBeInstanceOf(WebhookError);
       const webhookErr = err as WebhookError;
       expect(webhookErr.status).toBe(500);
-      expect(webhookErr.endpoint).toBe("retriage");
+      expect(webhookErr.endpoint).toBe("/api/emails/email-001/retriage");
     }
   });
 
-  it("throws WebhookError on 422 response", async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 422 });
+  it("unsubscribe throws user-friendly message on 501", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 501 });
+    try {
+      await unsubscribe(unsubscribePayload);
+      expect.fail("Should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(WebhookError);
+      const webhookErr = err as WebhookError;
+      expect(webhookErr.status).toBe(501);
+      expect(webhookErr.message).toContain("noch nicht verfügbar");
+    }
+  });
+
+  it("unsubscribe throws WebhookError on non-501 failure", async () => {
+    fetchMock.mockResolvedValue(failJson(422));
     await expect(unsubscribe(unsubscribePayload)).rejects.toThrow(WebhookError);
   });
 });

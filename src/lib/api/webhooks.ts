@@ -28,6 +28,10 @@ export type UnsubscribePayload = {
   readonly list_unsubscribe_mailto?: string | null;
 };
 
+export type ApproveDraftResult = {
+  readonly warning?: string;
+};
+
 // --- Error type ---
 
 export class WebhookError extends Error {
@@ -42,72 +46,150 @@ export class WebhookError extends Error {
   }
 }
 
-// --- Internal helper ---
+// --- Internal helpers ---
 
-async function postWebhook<T extends Record<string, unknown>>(
-  action: string,
-  payload: T,
-): Promise<void> {
-  const url = `/api/webhooks/${action}`;
+function emailUrl(emailId: string, action: string): string {
+  return `/api/emails/${encodeURIComponent(emailId)}/${action}`;
+}
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(30_000),
-  });
-
-  if (!response.ok) {
-    throw new WebhookError(
-      `Webhook fehlgeschlagen (HTTP ${response.status})`,
-      response.status,
-      action,
-    );
+async function parseErrorDetail(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as Record<string, unknown>;
+    if (typeof body.error === "string") return body.error;
+  } catch {
+    // Response may not be JSON
   }
+  return `HTTP ${response.status}`;
 }
 
 // --- Public API ---
 
+/**
+ * Two-step approve flow:
+ * 1. PATCH the (possibly edited) draft text to the backend
+ * 2. POST send to trigger the actual email delivery
+ */
 export async function approveDraft(
   payload: ApproveDraftPayload,
-): Promise<void> {
-  const url = "/api/email/send";
+): Promise<ApproveDraftResult> {
+  const id = payload.email_id;
+
+  // Step 1: save the edited draft
+  const patchUrl = emailUrl(id, "draft");
+  const patchResponse = await fetch(patchUrl, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ draft_reply: payload.draft_plain }),
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  if (!patchResponse.ok) {
+    const detail = await parseErrorDetail(patchResponse);
+    throw new WebhookError(
+      `Entwurf konnte nicht gespeichert werden: ${detail}`,
+      patchResponse.status,
+      patchUrl,
+    );
+  }
+
+  // Step 2: send the email
+  const sendUrl = emailUrl(id, "send");
+  const sendResponse = await fetch(sendUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (!sendResponse.ok) {
+    const detail = await parseErrorDetail(sendResponse);
+    throw new WebhookError(
+      `E-Mail-Versand fehlgeschlagen: ${detail}`,
+      sendResponse.status,
+      sendUrl,
+    );
+  }
+
+  const result = (await sendResponse.json().catch(() => ({}))) as Record<
+    string,
+    unknown
+  >;
+  return {
+    warning: typeof result.warning === "string" ? result.warning : undefined,
+  };
+}
+
+export async function rejectDraft(payload: RejectDraftPayload): Promise<void> {
+  const url = emailUrl(payload.email_id, "reject");
 
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      to: payload.sender_email,
-      subject: payload.subject,
-      body_html: payload.draft_html,
-      body_plain: payload.draft_plain,
-      email_id: payload.email_id,
-    }),
+    body: JSON.stringify({ reason: payload.reason }),
     signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    const detail =
-      typeof (body as Record<string, unknown>).error === "string"
-        ? (body as Record<string, unknown>).error
-        : `HTTP ${response.status}`;
+    const detail = await parseErrorDetail(response);
     throw new WebhookError(
-      `E-Mail-Versand fehlgeschlagen: ${detail}`,
+      `Ablehnung fehlgeschlagen: ${detail}`,
       response.status,
       url,
     );
   }
 }
 
-export async function rejectDraft(payload: RejectDraftPayload): Promise<void> {
-  await postWebhook("reject", payload);
-}
-
 export async function retriage(payload: RetriagePayload): Promise<void> {
-  await postWebhook("retriage", payload);
+  const url = emailUrl(payload.email_id, "retriage");
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sender_email: payload.sender_email,
+      subject: payload.subject,
+      original_category: payload.original_category,
+    }),
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (!response.ok) {
+    const detail = await parseErrorDetail(response);
+    throw new WebhookError(
+      `Verschieben fehlgeschlagen: ${detail}`,
+      response.status,
+      url,
+    );
+  }
 }
 
 export async function unsubscribe(payload: UnsubscribePayload): Promise<void> {
-  await postWebhook("unsubscribe", payload);
+  const url = emailUrl(payload.email_id, "unsubscribe");
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sender_email: payload.sender_email,
+      list_unsubscribe_url: payload.list_unsubscribe_url,
+      list_unsubscribe_mailto: payload.list_unsubscribe_mailto,
+    }),
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (response.status === 501) {
+    throw new WebhookError(
+      "Automatische Abmeldung ist noch nicht verfügbar. Bitte manuell abmelden.",
+      501,
+      url,
+    );
+  }
+
+  if (!response.ok) {
+    const detail = await parseErrorDetail(response);
+    throw new WebhookError(
+      `Abmeldung fehlgeschlagen: ${detail}`,
+      response.status,
+      url,
+    );
+  }
 }

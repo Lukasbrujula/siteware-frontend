@@ -11,6 +11,25 @@ const CATEGORY_KEYS = new Set([
   "unsubscribe",
 ]);
 
+/**
+ * Convert a value that might be a Unix-seconds integer, a millisecond timestamp,
+ * or an ISO string into a valid ISO date string.
+ */
+function toIsoDate(value: unknown): string {
+  if (value == null) return new Date().toISOString();
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    if (!isNaN(parsed.getTime())) return parsed.toISOString();
+  }
+  const num = Number(value);
+  if (!isNaN(num) && num > 0) {
+    // Unix seconds are < 10_000_000_000; milliseconds are >= that threshold
+    const ms = num < 10_000_000_000 ? num * 1000 : num;
+    return new Date(ms).toISOString();
+  }
+  return new Date().toISOString();
+}
+
 function mapBackendEmail(raw: RawEmail): RawEmail {
   const fromAddress = (raw.from_address as string) ?? "";
   const senderEmail =
@@ -23,6 +42,7 @@ function mapBackendEmail(raw: RawEmail): RawEmail {
 
   const draftPlain =
     (raw.draft_plain as string | undefined) ??
+    (raw.draft_reply as string | undefined) ??
     (raw.draft_text as string | undefined) ??
     (raw.draft_content as string | undefined) ??
     "";
@@ -48,8 +68,8 @@ function mapBackendEmail(raw: RawEmail): RawEmail {
     sender_domain: senderDomain,
     body_plain: raw.body_plain ?? raw.body ?? "",
     category: raw.category ?? raw.classification,
-    date: raw.date ?? raw.received_at ?? new Date().toISOString(),
-    timestamp: raw.timestamp ?? raw.received_at ?? new Date().toISOString(),
+    date: toIsoDate(raw.date ?? raw.received_at),
+    timestamp: toIsoDate(raw.timestamp ?? raw.received_at),
     draft_plain: draftPlain,
     draft_html: draftHtml,
     original_preview: originalPreview,
@@ -169,10 +189,11 @@ export class ServerApiError extends Error {
 }
 
 export async function deleteEmailFromServer(emailId: string): Promise<void> {
-  const url = `/api/email/${encodeURIComponent(emailId)}`;
+  const url = `/api/emails/${encodeURIComponent(emailId)}/archive`;
 
   const response = await fetch(url, {
-    method: "DELETE",
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     signal: AbortSignal.timeout(10_000),
   });
 
@@ -190,24 +211,14 @@ export type UpdateEmailStatusPayload = {
   readonly assignee?: string;
 };
 
+/**
+ * No-op — the primary action routes (send, reject, archive) already set
+ * the correct status on the backend. This function exists only to satisfy
+ * existing call sites that invoke it as a best-effort follow-up.
+ */
 export async function updateEmailStatus(
-  emailId: string,
-  payload: UpdateEmailStatusPayload,
+  _emailId: string,
+  _payload: UpdateEmailStatusPayload,
 ): Promise<void> {
-  const url = `/api/email/${encodeURIComponent(emailId)}`;
-
-  const response = await fetch(url, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(10_000),
-  });
-
-  if (!response.ok) {
-    throw new ServerApiError(
-      `Status-Update fehlgeschlagen (HTTP ${response.status})`,
-      response.status,
-      url,
-    );
-  }
+  // Intentionally empty — action endpoints handle status transitions.
 }
