@@ -6,19 +6,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useEmailStore } from "@/lib/store/email-store";
+import { useFilteredSlice } from "@/hooks/useFilteredSlice";
 import { UnsubscribeTable } from "@/components/email/UnsubscribeTable";
 import { unsubscribe } from "@/lib/api/webhooks";
 import { emitAuditEvent } from "@/lib/api/audit";
 import { toast } from "sonner";
 
 export function UnsubscribeView() {
-  const entries = useEmailStore((state) => state.unsubscribes);
+  const entries = useFilteredSlice("unsubscribes");
   const total = entries.length;
-  const failed = useEmailStore(
-    (state) =>
-      state.unsubscribes.filter((u) => u.status === "nicht erfolgreich").length,
-  );
+  const failed = entries.filter((u) => u.status === "nicht erfolgreich").length;
 
   const [retryingIds, setRetryingIds] = useState<ReadonlySet<string>>(
     new Set(),

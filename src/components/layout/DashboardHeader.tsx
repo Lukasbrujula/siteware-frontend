@@ -4,6 +4,7 @@ import { LogOut, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useEmailStore } from "@/lib/store/email-store";
 import { useAuthStore } from "@/lib/store/auth-store";
+import { InboxFilter } from "@/components/email/InboxFilter";
 
 function ActionCountBadge() {
   const count = useEmailStore(
@@ -57,6 +58,7 @@ export function DashboardHeader({ children, isSyncing }: DashboardHeaderProps) {
         </div>
         {children}
         <div className="flex items-center gap-3">
+          <InboxFilter />
           <span className="text-sm text-muted-foreground">Offene Aktionen</span>
           <ActionCountBadge />
           <Link

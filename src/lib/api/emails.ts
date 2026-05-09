@@ -1,6 +1,22 @@
 import { useEmailStore } from "@/lib/store/email-store";
+import { useUiStore } from "@/lib/store/ui-store";
+import type { Inbox } from "@/types/email";
 
 type RawEmail = Record<string, unknown>;
+
+export async function fetchInboxes(): Promise<void> {
+  // Backend route uses session-cookie auth; tenant_id is read from req.tenant.id
+  const response = await fetch("/api/inboxes", {
+    headers: { "Cache-Control": "no-cache" },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) return;
+
+  const json = (await response.json()) as { inboxes?: readonly Inbox[] };
+  if (Array.isArray(json.inboxes)) {
+    useUiStore.getState().setInboxes(json.inboxes);
+  }
+}
 
 const CATEGORY_KEYS = new Set([
   "spam",
@@ -96,6 +112,9 @@ function mapBackendEmail(raw: RawEmail): RawEmail {
     sender_email: senderEmail,
     sender_name: senderName,
     sender_domain: senderDomain,
+    inbox_id: (raw.inbox_id as string | null | undefined) ?? null,
+    inbox_email: (raw.inbox_email as string | null | undefined) ?? null,
+    inbox_label: (raw.inbox_label as string | null | undefined) ?? null,
     body_plain: raw.body_plain ?? raw.body ?? "",
     category: raw.category ?? raw.classification,
     date: toIsoDate(raw.date ?? raw.received_at),

@@ -22,6 +22,7 @@ import {
 import { SentimentBadge } from "@/components/email/SentimentBadge";
 import { RiskFlags } from "@/components/email/RiskFlags";
 import { useEmailStore } from "@/lib/store/email-store";
+import { useFilteredSlice } from "@/hooks/useFilteredSlice";
 import { emitAuditEvent } from "@/lib/api/audit";
 import { updateEmailStatus } from "@/lib/api/emails";
 import { approveDraft, rejectDraft } from "@/lib/api/webhooks";
@@ -281,7 +282,7 @@ function EscalationCard({ alert }: { readonly alert: EscalationAlert }) {
 }
 
 export function EscalationView() {
-  const escalations = useEmailStore((state) => state.escalations);
+  const escalations = useFilteredSlice("escalations");
 
   const sorted = useMemo(
     () => [...escalations].sort(sortBySeverity),

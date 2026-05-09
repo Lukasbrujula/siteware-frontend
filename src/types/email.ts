@@ -6,7 +6,21 @@ export type EmailCategory =
   | "ESCALATION"
   | "UNSUB";
 
-export type SpamAdEmail = {
+export type Inbox = {
+  readonly id: string;
+  readonly email: string;
+  readonly label: string;
+  readonly is_active?: boolean;
+};
+
+// Optional inbox provenance fields populated by the backend per email
+export type InboxProvenance = {
+  readonly inbox_id?: string | null;
+  readonly inbox_email?: string | null;
+  readonly inbox_label?: string | null;
+};
+
+export type SpamAdEmail = InboxProvenance & {
   readonly workflow: "email_inbox";
   readonly category: "SPAM" | "AD";
   readonly email_id: string;
@@ -24,7 +38,7 @@ export type SpamAdEmail = {
   readonly unsubscribe_available: boolean;
 };
 
-export type DraftEmail = {
+export type DraftEmail = InboxProvenance & {
   readonly workflow: "email_inbox";
   readonly category: "URGENT" | "OTHER";
   readonly email_id: string;
@@ -48,7 +62,7 @@ export type DraftEmail = {
   readonly timestamp: string;
 };
 
-export type EscalationAlert = {
+export type EscalationAlert = InboxProvenance & {
   readonly workflow: "email_inbox";
   readonly category: "ESCALATION";
   readonly email_id: string;
@@ -70,7 +84,7 @@ export type EscalationAlert = {
   readonly placeholders?: readonly string[];
 };
 
-export type UnsubscribeStatus = {
+export type UnsubscribeStatus = InboxProvenance & {
   readonly email_id: string;
   readonly sender: string;
   readonly unsubscribe_method: "one-click" | "mailto" | "not-found";
@@ -91,7 +105,7 @@ export type AdEmail = SpamAdEmail & { readonly category: "AD" };
 export type UrgentDraft = DraftEmail & { readonly category: "URGENT" };
 export type OtherDraft = DraftEmail & { readonly category: "OTHER" };
 
-export type SentEmail = {
+export type SentEmail = InboxProvenance & {
   readonly email_id: string;
   readonly sender_name: string;
   readonly sender_email: string;

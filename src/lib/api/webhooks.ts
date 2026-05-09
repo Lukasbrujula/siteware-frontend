@@ -32,6 +32,10 @@ export type ApproveDraftResult = {
   readonly warning?: string;
 };
 
+export type ReclassifyPayload = {
+  readonly new_classification: "SPAM" | "AD" | "URGENT" | "OTHER";
+};
+
 // --- Error type ---
 
 export class WebhookError extends Error {
@@ -188,6 +192,29 @@ export async function unsubscribe(payload: UnsubscribePayload): Promise<void> {
     const detail = await parseErrorDetail(response);
     throw new WebhookError(
       `Abmeldung fehlgeschlagen: ${detail}`,
+      response.status,
+      url,
+    );
+  }
+}
+
+export async function reclassifyEmail(
+  emailId: string,
+  payload: ReclassifyPayload,
+): Promise<void> {
+  const url = emailUrl(emailId, "reclassify");
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (!response.ok) {
+    const detail = await parseErrorDetail(response);
+    throw new WebhookError(
+      `Umklassifizierung fehlgeschlagen: ${detail}`,
       response.status,
       url,
     );

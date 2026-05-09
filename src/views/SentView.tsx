@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useEmailStore } from "@/lib/store/email-store";
+import { useFilteredSlice } from "@/hooks/useFilteredSlice";
 import type { SentEmail } from "@/types/email";
 
 function formatDate(dateStr: string): string {
@@ -56,7 +57,7 @@ function ExpandedSentRow({ email }: { readonly email: SentEmail }) {
 }
 
 export function SentView() {
-  const emails = useEmailStore((state) => state.sent);
+  const emails = useFilteredSlice("sent");
   const setSentEmails = useEmailStore((state) => state.setSentEmails);
   const [isLoading, setIsLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);

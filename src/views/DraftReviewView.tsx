@@ -4,8 +4,9 @@ import { OriginalEmail } from "@/components/email/OriginalEmail";
 import { DraftEditor } from "@/components/email/DraftEditor";
 import { useEmailStore } from "@/lib/store/email-store";
 import { useUiStore } from "@/lib/store/ui-store";
+import { useFilteredSlice } from "@/hooks/useFilteredSlice";
 import { approveDraft, rejectDraft } from "@/lib/api/webhooks";
-import { updateEmailStatus } from "@/lib/api/emails";
+import { updateEmailStatus, refreshStoreFromServer } from "@/lib/api/emails";
 import { emitAuditEvent } from "@/lib/api/audit";
 import type { DraftEmail } from "@/types/email";
 import { toast } from "sonner";
@@ -37,9 +38,7 @@ function NoSelectionState() {
 }
 
 export function DraftReviewView({ title, slice }: DraftReviewViewProps) {
-  const emails = useEmailStore(
-    (state) => state[slice],
-  ) as readonly DraftEmail[];
+  const emails = useFilteredSlice(slice) as readonly DraftEmail[];
   const removeEmailById = useEmailStore((state) => state.removeEmailById);
   const selectedEmailId = useUiStore((state) => state.selectedEmailId);
   const setSelectedEmailId = useUiStore((state) => state.setSelectedEmailId);
@@ -106,6 +105,11 @@ export function DraftReviewView({ title, slice }: DraftReviewViewProps) {
         // Update server-side status to "sent" (best-effort)
         updateEmailStatus(emailId, { status: "sent" }).catch(() => {
           // Non-critical: local removal already happened
+        });
+        // Re-sync from server so the email shows up in Sent and any
+        // server-side status changes are reflected immediately.
+        refreshStoreFromServer().catch(() => {
+          // Non-critical: next poll will catch up
         });
         setSelectedEmailId(null);
         setDraftEditorContent("");

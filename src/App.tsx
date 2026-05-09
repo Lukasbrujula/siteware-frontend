@@ -5,6 +5,7 @@ import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { CategoryTabs } from "@/components/layout/CategoryTabs";
 import { useDataStream } from "@/hooks/useDataStream";
 import { useAuthStore } from "@/lib/store/auth-store";
+import { fetchInboxes } from "@/lib/api/emails";
 import { Loader2 } from "lucide-react";
 
 export default function App() {
@@ -24,6 +25,13 @@ export default function App() {
       navigate("/login", { replace: true });
     }
   }, [isLoading, isVerified, navigate]);
+
+  useEffect(() => {
+    if (!isVerified) return;
+    fetchInboxes().catch(() => {
+      // Silent fail — inbox filter degrades gracefully to "all inboxes"
+    });
+  }, [isVerified]);
 
   const { isSyncing } = useDataStream({ enabled: isVerified });
 

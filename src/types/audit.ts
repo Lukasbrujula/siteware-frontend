@@ -10,7 +10,8 @@ export type AuditAction =
   | "unsubscribe_retried"
   | "email_ingested"
   | "email_archived"
-  | "email_sent";
+  | "email_sent"
+  | "email_reclassified";
 
 export type AuditEvent = {
   readonly action: AuditAction;

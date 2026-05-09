@@ -17,7 +17,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { EmailTable } from "@/components/email/EmailTable";
 import { useEmailStore } from "@/lib/store/email-store";
-import { retriage, unsubscribe } from "@/lib/api/webhooks";
+import { useFilteredSlice } from "@/hooks/useFilteredSlice";
+import { retriage, unsubscribe, reclassifyEmail } from "@/lib/api/webhooks";
 import {
   deleteEmailFromServer,
   refreshStoreFromServer,
@@ -25,6 +26,17 @@ import {
 import { emitAuditEvent } from "@/lib/api/audit";
 import { toast } from "sonner";
 import type { SpamAdEmail } from "@/types/email";
+
+type ReclassifyTarget = "SPAM" | "URGENT" | "OTHER";
+
+const AD_RECLASSIFY_OPTIONS: readonly {
+  readonly value: ReclassifyTarget;
+  readonly label: string;
+}[] = [
+  { value: "SPAM", label: "Spam" },
+  { value: "URGENT", label: "Dringend" },
+  { value: "OTHER", label: "Sonstige" },
+];
 
 function UnsubscribeIndicator({ available }: { readonly available: boolean }) {
   if (available) {
@@ -45,7 +57,7 @@ function UnsubscribeIndicator({ available }: { readonly available: boolean }) {
 }
 
 export function AdView() {
-  const emails = useEmailStore((state) => state.ads);
+  const emails = useFilteredSlice("ads");
   const removeEmail = useEmailStore((state) => state.removeEmail);
 
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
@@ -271,9 +283,49 @@ export function AdView() {
     [emails, removeEmail],
   );
 
+  const [reclassifyingId, setReclassifyingId] = useState<string | null>(null);
+
+  const handleReclassify = useCallback(
+    async (emailId: string, target: ReclassifyTarget) => {
+      setReclassifyingId(emailId);
+      try {
+        await reclassifyEmail(emailId, { new_classification: target });
+        removeEmail("ads", emailId);
+        await refreshStoreFromServer();
+        emitAuditEvent({
+          action: "email_reclassified",
+          email_id: emailId,
+          category: "AD",
+          result: "success",
+          context: { new_classification: target },
+        });
+        toast.success("Umklassifiziert", {
+          description: `Verschoben nach ${target}.`,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unbekannter Fehler";
+        emitAuditEvent({
+          action: "email_reclassified",
+          email_id: emailId,
+          category: "AD",
+          result: "failure",
+          error: message,
+        });
+        toast.error("Umklassifizierung fehlgeschlagen", {
+          description: message,
+        });
+      } finally {
+        setReclassifyingId(null);
+      }
+    },
+    [removeEmail],
+  );
+
   const renderRowActions = useCallback(
     (email: SpamAdEmail) => {
       const isUnsubscribing = unsubscribingId === email.email_id;
+      const isReclassifying = reclassifyingId === email.email_id;
       return (
         <div className="flex items-center justify-end gap-2">
           <UnsubscribeIndicator available={email.unsubscribe_available} />
@@ -292,10 +344,32 @@ export function AdView() {
               Abmelden
             </Button>
           ) : null}
+          {isReclassifying ? (
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          ) : null}
+          <select
+            aria-label="Umklassifizieren als"
+            disabled={isReclassifying}
+            value=""
+            onChange={(e) => {
+              const value = e.target.value as ReclassifyTarget | "";
+              if (value === "") return;
+              void handleReclassify(email.email_id, value);
+              e.target.value = "";
+            }}
+            className="cursor-pointer rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="">Umklassifizieren…</option>
+            {AD_RECLASSIFY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         </div>
       );
     },
-    [handleUnsubscribe, unsubscribingId],
+    [handleUnsubscribe, unsubscribingId, handleReclassify, reclassifyingId],
   );
 
   const selectedCount = selectedIds.size;

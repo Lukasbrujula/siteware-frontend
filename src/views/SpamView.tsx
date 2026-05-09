@@ -10,16 +10,29 @@ import {
 import { Button } from "@/components/ui/button";
 import { EmailTable } from "@/components/email/EmailTable";
 import { useEmailStore } from "@/lib/store/email-store";
-import { retriage } from "@/lib/api/webhooks";
+import { useFilteredSlice } from "@/hooks/useFilteredSlice";
+import { retriage, reclassifyEmail } from "@/lib/api/webhooks";
 import {
   deleteEmailFromServer,
   refreshStoreFromServer,
 } from "@/lib/api/emails";
 import { emitAuditEvent } from "@/lib/api/audit";
 import { toast } from "sonner";
+import type { SpamAdEmail } from "@/types/email";
+
+type ReclassifyTarget = "AD" | "URGENT" | "OTHER";
+
+const SPAM_RECLASSIFY_OPTIONS: readonly {
+  readonly value: ReclassifyTarget;
+  readonly label: string;
+}[] = [
+  { value: "AD", label: "Werbung" },
+  { value: "URGENT", label: "Dringend" },
+  { value: "OTHER", label: "Sonstige" },
+];
 
 export function SpamView() {
-  const emails = useEmailStore((state) => state.spam);
+  const emails = useFilteredSlice("spam");
   const removeEmail = useEmailStore((state) => state.removeEmail);
 
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
@@ -196,6 +209,78 @@ export function SpamView() {
     }
   }, [emails, selectedIds, removeEmail]);
 
+  const [reclassifyingId, setReclassifyingId] = useState<string | null>(null);
+
+  const handleReclassify = useCallback(
+    async (emailId: string, target: ReclassifyTarget) => {
+      setReclassifyingId(emailId);
+      try {
+        await reclassifyEmail(emailId, { new_classification: target });
+        removeEmail("spam", emailId);
+        await refreshStoreFromServer();
+        emitAuditEvent({
+          action: "email_reclassified",
+          email_id: emailId,
+          category: "SPAM",
+          result: "success",
+          context: { new_classification: target },
+        });
+        toast.success("Umklassifiziert", {
+          description: `Verschoben nach ${target}.`,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unbekannter Fehler";
+        emitAuditEvent({
+          action: "email_reclassified",
+          email_id: emailId,
+          category: "SPAM",
+          result: "failure",
+          error: message,
+        });
+        toast.error("Umklassifizierung fehlgeschlagen", {
+          description: message,
+        });
+      } finally {
+        setReclassifyingId(null);
+      }
+    },
+    [removeEmail],
+  );
+
+  const renderRowActions = useCallback(
+    (email: SpamAdEmail) => {
+      const isReclassifying = reclassifyingId === email.email_id;
+      return (
+        <div className="flex items-center justify-end gap-2">
+          {isReclassifying ? (
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          ) : null}
+          <select
+            aria-label="Umklassifizieren als"
+            disabled={isReclassifying}
+            value=""
+            onChange={(e) => {
+              const value = e.target.value as ReclassifyTarget | "";
+              if (value === "") return;
+              void handleReclassify(email.email_id, value);
+              e.target.value = "";
+            }}
+            className="cursor-pointer rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="">Umklassifizieren…</option>
+            {SPAM_RECLASSIFY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      );
+    },
+    [handleReclassify, reclassifyingId],
+  );
+
   const selectedCount = selectedIds.size;
   const hasSelection = selectedCount > 0;
 
@@ -253,6 +338,7 @@ export function SpamView() {
           onToggleSelect={handleToggleSelect}
           onToggleSelectAll={handleToggleSelectAll}
           onToggleExpand={handleToggleExpand}
+          renderRowActions={renderRowActions}
           emptyMessage="Kein Spam erkannt"
         />
       </CardContent>
