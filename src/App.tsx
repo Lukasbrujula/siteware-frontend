@@ -13,6 +13,7 @@ export default function App() {
   const checkAuthCalled = useRef(false);
   const isVerified = useAuthStore((s) => s.isVerified);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
     if (checkAuthCalled.current) return;
@@ -21,10 +22,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isLoading && !isVerified) {
+    if (isLoading) return;
+    if (!isVerified) {
       navigate("/login", { replace: true });
+      return;
     }
-  }, [isLoading, isVerified, navigate]);
+    if (user?.onboarded === false) {
+      navigate("/onboarding", { replace: true });
+    }
+  }, [isLoading, isVerified, user, navigate]);
 
   useEffect(() => {
     if (!isVerified) return;

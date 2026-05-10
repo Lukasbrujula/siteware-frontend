@@ -74,8 +74,8 @@ export function OnboardingView() {
     if (checkAuthCalled.current) return;
     checkAuthCalled.current = true;
     // Skip if App.tsx already resolved auth (e.g. navigating from /)
-    const { isVerified, isLoading } = useAuthStore.getState();
-    if (!isVerified && !isLoading) {
+    const { isVerified } = useAuthStore.getState();
+    if (!isVerified) {
       void useAuthStore.getState().checkAuth();
     }
   }, []);

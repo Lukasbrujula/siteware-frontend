@@ -5,6 +5,7 @@ type User = {
   readonly email: string;
   readonly name?: string;
   readonly role?: string;
+  readonly onboarded?: boolean;
 };
 
 type AuthState = {
@@ -36,7 +37,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const response = await fetch("/api/auth/me");
       if (response.ok) {
         const json = (await response.json()) as Record<string, unknown>;
-        if (typeof json.email !== "string") {
+        const src =
+          (json.tenant as Record<string, unknown> | undefined) ?? json;
+        if (typeof src.email !== "string") {
           set({
             user: null,
             isVerified: false,
@@ -46,10 +49,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
           return;
         }
         const data: User = {
-          id: typeof json.id === "string" ? json.id : undefined,
-          email: json.email,
-          name: typeof json.name === "string" ? json.name : undefined,
-          role: typeof json.role === "string" ? json.role : undefined,
+          id: typeof src.id === "string" ? src.id : undefined,
+          email: src.email,
+          name: typeof src.name === "string" ? src.name : undefined,
+          role: typeof src.role === "string" ? src.role : undefined,
+          onboarded:
+            typeof src.onboarded === "boolean" ? src.onboarded : undefined,
         };
         set({ user: data, isVerified: true, isLoading: false, error: null });
       } else {

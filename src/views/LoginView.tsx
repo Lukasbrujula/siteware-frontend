@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,19 @@ type Step = "email" | "code";
 
 export function LoginView() {
   const navigate = useNavigate();
+  const isVerified = useAuthStore((s) => s.isVerified);
+  const user = useAuthStore((s) => s.user);
   const [step, setStep] = useState<Step>("email");
+
+  useEffect(() => {
+    if (isVerified) {
+      if (user?.onboarded === false) {
+        navigate("/onboarding", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
+    }
+  }, [isVerified, user, navigate]);
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -56,12 +68,13 @@ export function LoginView() {
       });
 
       if (response.ok) {
-        const data = (await response.json()) as {
-          email: string;
-          name?: string;
-        };
-        useAuthStore.getState().setUser(data);
-        navigate("/", { replace: true });
+        await useAuthStore.getState().checkAuth();
+        const { user } = useAuthStore.getState();
+        if (user?.onboarded === false) {
+          navigate("/onboarding", { replace: true });
+        } else {
+          navigate("/", { replace: true });
+        }
       } else {
         const data = (await response.json().catch(() => ({}))) as {
           error?: string;
