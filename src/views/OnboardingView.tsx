@@ -4,7 +4,6 @@ import { Loader2 } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { Step1Credentials } from "@/components/onboarding/Step1Credentials";
-import { Step2Siteware } from "@/components/onboarding/Step2Siteware";
 import { Step2ScanSent } from "@/components/onboarding/Step2ScanSent";
 import { Step3WebsiteScrape } from "@/components/onboarding/Step3WebsiteScrape";
 import { Step4ToneAnalysis } from "@/components/onboarding/Step4ToneAnalysis";
@@ -52,11 +51,10 @@ type OnboardingState = {
   readonly emailSignature: string;
 };
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 5;
 
 const STEP_LABELS: readonly string[] = [
   "Zugangsdaten",
-  "Siteware",
   "E-Mail-Scan",
   "Website",
   "Schreibstil",
@@ -160,11 +158,7 @@ export function OnboardingView() {
             <Step1Credentials onUpdate={handleUpdate} onNext={handleNext} />
           )}
 
-          {currentStep === 2 && (
-            <Step2Siteware onUpdate={handleUpdate} onNext={handleNext} />
-          )}
-
-          {currentStep === 3 && state.credentials && (
+          {currentStep === 2 && state.credentials && (
             <Step2ScanSent
               state={{ credentials: state.credentials }}
               onUpdate={handleUpdate}
@@ -172,11 +166,11 @@ export function OnboardingView() {
             />
           )}
 
-          {currentStep === 4 && (
+          {currentStep === 3 && (
             <Step3WebsiteScrape onUpdate={handleUpdate} onNext={handleNext} />
           )}
 
-          {currentStep === 5 && state.sentScan && (
+          {currentStep === 4 && state.sentScan && (
             <Step4ToneAnalysis
               state={{
                 sentScan: state.sentScan,
@@ -188,7 +182,7 @@ export function OnboardingView() {
             />
           )}
 
-          {currentStep === 6 &&
+          {currentStep === 5 &&
             state.credentials &&
             state.sentScan &&
             state.toneProfile && (
@@ -200,7 +194,7 @@ export function OnboardingView() {
                   toneProfile: state.toneProfile,
                   emailSignature: state.emailSignature,
                 }}
-                onEditTone={() => goToStep(5)}
+                onEditTone={() => goToStep(4)}
               />
             )}
         </div>
