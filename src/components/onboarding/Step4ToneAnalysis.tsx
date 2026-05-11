@@ -86,48 +86,58 @@ export function Step4ToneAnalysis({
     jargon: [],
   });
 
-  const runAnalysis = useCallback(async () => {
-    setAnalysisState("loading");
-    setErrorMessage("");
+  const runAnalysis = useCallback(
+    async (signal?: AbortSignal) => {
+      setAnalysisState("loading");
+      setErrorMessage("");
 
-    try {
-      const response = await fetch("/api/onboarding/analyze-tone", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sentEmails: state.sentScan.rawEmails ?? [],
-          websiteContent: state.websiteData?.rawText ?? null,
-          tenantId: "default",
-        }),
-      });
+      try {
+        const response = await fetch("/api/onboarding/analyze-tone", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sentEmails: state.sentScan.rawEmails ?? [],
+            websiteContent: state.websiteData?.rawText ?? null,
+            tenantId: "default",
+          }),
+          signal,
+        });
 
-      const data = (await response.json()) as AnalysisResponse;
+        const data = (await response.json()) as AnalysisResponse;
 
-      if (!response.ok || !data.success || !data.profile) {
+        if (signal?.aborted) return;
+
+        if (!response.ok || !data.success || !data.profile) {
+          setAnalysisState("error");
+          setErrorMessage(data.error ?? "Analyse fehlgeschlagen");
+          return;
+        }
+
+        const p = data.profile;
+        setProfile({
+          formality: toFormality(p.formality),
+          greeting: p.greeting,
+          closing: p.closing,
+          sentenceStyle: p.sentenceStyle,
+          avoidances: [...p.avoid],
+          preferences: [...p.prefer],
+          jargon: [...p.industryTerms],
+        });
+        setAnalysisState("success");
+      } catch (err) {
+        if ((err as Error)?.name === "AbortError") return;
+        console.error("[step4] analyze-tone fetch failed:", err);
         setAnalysisState("error");
-        setErrorMessage(data.error ?? "Analyse fehlgeschlagen");
-        return;
+        setErrorMessage("Netzwerkfehler — Server nicht erreichbar");
       }
-
-      const p = data.profile;
-      setProfile({
-        formality: toFormality(p.formality),
-        greeting: p.greeting,
-        closing: p.closing,
-        sentenceStyle: p.sentenceStyle,
-        avoidances: [...p.avoid],
-        preferences: [...p.prefer],
-        jargon: [...p.industryTerms],
-      });
-      setAnalysisState("success");
-    } catch {
-      setAnalysisState("error");
-      setErrorMessage("Netzwerkfehler — Server nicht erreichbar");
-    }
-  }, [state.sentScan.rawEmails, state.websiteData]);
+    },
+    [state.sentScan.rawEmails, state.websiteData],
+  );
 
   useEffect(() => {
-    runAnalysis();
+    const controller = new AbortController();
+    runAnalysis(controller.signal);
+    return () => controller.abort();
   }, [runAnalysis]);
 
   function updateField<K extends keyof EditableToneProfile>(
@@ -167,7 +177,7 @@ export function Step4ToneAnalysis({
             <AlertCircle className="size-4 shrink-0" />
             {errorMessage}
           </div>
-          <Button variant="outline" onClick={runAnalysis}>
+          <Button variant="outline" onClick={() => runAnalysis()}>
             Erneut versuchen
           </Button>
         </div>
