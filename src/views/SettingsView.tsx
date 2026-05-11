@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Loader2, Trash2, Plus, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AddInboxModal } from "@/components/settings/AddInboxModal";
 import { ToneSettingsPanel } from "@/components/settings/ToneSettingsPanel";
 import { useAuthStore } from "@/lib/store/auth-store";
 import {
@@ -33,6 +34,7 @@ export function SettingsView() {
   );
   const [deleteTarget, setDeleteTarget] = useState<Tenant | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [addInboxOpen, setAddInboxOpen] = useState(false);
 
   const fetchTenants = useCallback(async () => {
     try {
@@ -148,12 +150,14 @@ export function SettingsView() {
                 Verwalten Sie Ihre E-Mail-Konten und deren Status.
               </p>
             </div>
-            <Link to="/onboarding">
-              <Button size="sm" className="cursor-pointer gap-1.5">
-                <Plus className="size-4" />
-                Neues Konto
-              </Button>
-            </Link>
+            <Button
+              size="sm"
+              className="cursor-pointer gap-1.5"
+              onClick={() => setAddInboxOpen(true)}
+            >
+              <Plus className="size-4" />
+              Neues Konto
+            </Button>
           </div>
 
           {loadState === "loading" && (
@@ -180,12 +184,13 @@ export function SettingsView() {
                   Verknüpfen Sie Ihr erstes E-Mail-Konto, um loszulegen.
                 </p>
               </div>
-              <Link to="/onboarding">
-                <Button className="cursor-pointer gap-1.5">
-                  <Plus className="size-4" />
-                  E-Mail-Konto verknüpfen
-                </Button>
-              </Link>
+              <Button
+                className="cursor-pointer gap-1.5"
+                onClick={() => setAddInboxOpen(true)}
+              >
+                <Plus className="size-4" />
+                E-Mail-Konto verknüpfen
+              </Button>
             </div>
           )}
 
@@ -274,6 +279,12 @@ export function SettingsView() {
           )}
         </div>
       </main>
+
+      <AddInboxModal
+        open={addInboxOpen}
+        onOpenChange={setAddInboxOpen}
+        onSuccess={fetchTenants}
+      />
 
       <Dialog
         open={deleteTarget !== null}
