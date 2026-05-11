@@ -20,6 +20,8 @@ type Credentials = {
   readonly imapPort: number;
   readonly smtpHost: string;
   readonly smtpPort: number;
+  readonly sitewareToken: string;
+  readonly replyAgentId: string;
 };
 
 type Step1CredentialsProps = {
@@ -157,6 +159,9 @@ export function Step1Credentials({ onUpdate, onNext }: Step1CredentialsProps) {
   const [imapPort, setImapPort] = useState("993");
   const [smtpHost, setSmtpHost] = useState("smtp.gmail.com");
   const [smtpPort, setSmtpPort] = useState("465");
+  const [sitewareToken, setSitewareToken] = useState("");
+  const [showSitewareToken, setShowSitewareToken] = useState(false);
+  const [replyAgentId, setReplyAgentId] = useState("");
   const [testState, setTestState] = useState<TestState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -168,7 +173,9 @@ export function Step1Credentials({ onUpdate, onNext }: Step1CredentialsProps) {
     imapHost.trim() !== "" &&
     imapPort.trim() !== "" &&
     smtpHost.trim() !== "" &&
-    smtpPort.trim() !== "";
+    smtpPort.trim() !== "" &&
+    sitewareToken.trim() !== "" &&
+    replyAgentId.trim() !== "";
 
   function handleProviderSelect(id: ProviderId) {
     const config = getProviderById(id);
@@ -224,6 +231,8 @@ export function Step1Credentials({ onUpdate, onNext }: Step1CredentialsProps) {
       imapPort: Number(imapPort),
       smtpHost: smtpHost.trim(),
       smtpPort: Number(smtpPort),
+      sitewareToken: sitewareToken.trim(),
+      replyAgentId: replyAgentId.trim(),
     };
     onUpdate({ credentials });
     onNext();
@@ -381,6 +390,55 @@ export function Step1Credentials({ onUpdate, onNext }: Step1CredentialsProps) {
               }
             />
           </div>
+        </div>
+
+        <div className="space-y-2 border-t border-gray-100 pt-4">
+          <Label htmlFor="cred-siteware-token">Siteware API-Schlüssel</Label>
+          <div className="relative">
+            <Input
+              id="cred-siteware-token"
+              type={showSitewareToken ? "text" : "password"}
+              placeholder="Siteware API-Token"
+              className="bg-gray-100 pr-10"
+              value={sitewareToken}
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                setSitewareToken(e.target.value)
+              }
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              onClick={() => setShowSitewareToken((prev) => !prev)}
+              aria-label={
+                showSitewareToken
+                  ? "API-Schlüssel verbergen"
+                  : "API-Schlüssel anzeigen"
+              }
+            >
+              {showSitewareToken ? (
+                <EyeOff className="size-4" />
+              ) : (
+                <Eye className="size-4" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="cred-reply-agent-id">Reply Agent ID</Label>
+          <Input
+            id="cred-reply-agent-id"
+            type="text"
+            placeholder="z. B. agent_def456"
+            className="bg-gray-100"
+            value={replyAgentId}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setReplyAgentId(e.target.value)
+            }
+          />
+          <p className="text-xs text-gray-500">
+            Der Reply Agent wird in Schritt 4 zur Tonanalyse validiert.
+          </p>
         </div>
 
         {testState === "error" && (

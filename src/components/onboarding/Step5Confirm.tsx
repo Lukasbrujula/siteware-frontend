@@ -21,6 +21,8 @@ type Credentials = {
   readonly imapPort: number;
   readonly smtpHost: string;
   readonly smtpPort: number;
+  readonly sitewareToken: string;
+  readonly replyAgentId: string;
 };
 
 type ScanResult = {
@@ -86,6 +88,8 @@ export function Step5Confirm({ state, onEditTone }: Step5ConfirmProps) {
             smtpPort: state.credentials.smtpPort,
             password: state.credentials.password,
           },
+          siteware_token: state.credentials.sitewareToken,
+          reply_agent_id: state.credentials.replyAgentId,
           toneProfile: state.toneProfile,
           websiteData: state.websiteData,
           emailSignature: state.emailSignature,

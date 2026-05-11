@@ -17,6 +17,8 @@ type OnboardingState = {
     readonly imapPort: number;
     readonly smtpHost: string;
     readonly smtpPort: number;
+    readonly sitewareToken: string;
+    readonly replyAgentId: string;
   } | null;
   readonly sentScan: {
     readonly emails_scanned: number;
