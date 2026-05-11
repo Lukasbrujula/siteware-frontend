@@ -25,9 +25,9 @@ type AnalysisResponse = {
     readonly greeting: string;
     readonly closing: string;
     readonly sentenceStyle: string;
-    readonly avoid: readonly string[];
-    readonly prefer: readonly string[];
-    readonly industryTerms: readonly string[];
+    readonly avoidances: readonly string[];
+    readonly preferences: readonly string[];
+    readonly jargon: readonly string[];
   };
   readonly error?: string;
 };
@@ -119,9 +119,9 @@ export function Step4ToneAnalysis({
           greeting: p.greeting,
           closing: p.closing,
           sentenceStyle: p.sentenceStyle,
-          avoidances: [...p.avoid],
-          preferences: [...p.prefer],
-          jargon: [...p.industryTerms],
+          avoidances: [...p.avoidances],
+          preferences: [...p.preferences],
+          jargon: [...p.jargon],
         });
         setAnalysisState("success");
       } catch (err) {
