@@ -18,12 +18,6 @@ type OnboardingState = {
     readonly smtpHost: string;
     readonly smtpPort: number;
   } | null;
-  readonly sitewareConfig: {
-    readonly token: string;
-    readonly triageAgentId: string;
-    readonly replyAgentId: string;
-    readonly toneAgentId: string;
-  } | null;
   readonly sentScan: {
     readonly emails_scanned: number;
     readonly subjects: readonly string[];
@@ -92,7 +86,6 @@ export function OnboardingView() {
   const [currentStep, setCurrentStep] = useState(1);
   const [state, setState] = useState<OnboardingState>({
     credentials: null,
-    sitewareConfig: null,
     sentScan: null,
     websiteData: null,
     toneProfile: null,
