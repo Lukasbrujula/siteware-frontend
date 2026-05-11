@@ -14,43 +14,49 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type Tenant = {
+type Inbox = {
+  readonly id: string;
   readonly tenant_id: string;
-  readonly imap_user: string | null;
-  readonly smtp_user: string | null;
-  readonly active: number;
+  readonly email: string;
+  readonly label: string;
+  readonly imap_host: string;
+  readonly imap_port: number;
+  readonly imap_user: string;
+  readonly smtp_host: string;
+  readonly smtp_port: number;
+  readonly smtp_user: string;
+  readonly is_active: number;
+  readonly last_polled_at: string | null;
+  readonly last_poll_error: string | null;
   readonly created_at: string;
-  readonly updated_at: string;
 };
 
 type LoadState = "loading" | "loaded" | "error";
 
 export function SettingsView() {
   const isVerified = useAuthStore((s) => s.isVerified);
-  const [tenants, setTenants] = useState<readonly Tenant[]>([]);
+  const [inboxes, setInboxes] = useState<readonly Inbox[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [togglingIds, setTogglingIds] = useState<ReadonlySet<string>>(
     new Set(),
   );
-  const [deleteTarget, setDeleteTarget] = useState<Tenant | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Inbox | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [addInboxOpen, setAddInboxOpen] = useState(false);
 
-  const fetchTenants = useCallback(async () => {
+  const fetchInboxes = useCallback(async () => {
     try {
-      const response = await fetch("/api/onboarding/tenants");
+      const response = await fetch("/api/inboxes");
 
       if (!response.ok) {
         setLoadState("error");
         return;
       }
 
-      const data = (await response.json()) as {
-        success: boolean;
-        data: Tenant[];
-      };
-      if (data.success) {
-        setTenants(data.data);
+      const data = (await response.json()) as { inboxes: Inbox[] };
+      if (Array.isArray(data.inboxes)) {
+        setInboxes(data.inboxes);
         setLoadState("loaded");
       } else {
         setLoadState("error");
@@ -61,13 +67,13 @@ export function SettingsView() {
   }, []);
 
   useEffect(() => {
-    fetchTenants();
-  }, [fetchTenants]);
+    fetchInboxes();
+  }, [fetchInboxes]);
 
-  async function handleToggle(tenantId: string, currentActive: number) {
+  async function handleToggle(inboxId: string, currentIsActive: number) {
     setTogglingIds((prev) => {
       const next = new Set(prev);
-      next.add(tenantId);
+      next.add(inboxId);
       return next;
     });
 
@@ -76,17 +82,17 @@ export function SettingsView() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tenant_id: tenantId,
-          active: currentActive === 0,
+          tenant_id: inboxId,
+          active: currentIsActive === 0,
         }),
       });
 
       if (response.ok) {
-        setTenants((prev) =>
-          prev.map((t) =>
-            t.tenant_id === tenantId
-              ? { ...t, active: currentActive === 0 ? 1 : 0 }
-              : t,
+        setInboxes((prev) =>
+          prev.map((inbox) =>
+            inbox.id === inboxId
+              ? { ...inbox, is_active: currentIsActive === 0 ? 1 : 0 }
+              : inbox,
           ),
         );
       }
@@ -95,7 +101,7 @@ export function SettingsView() {
     } finally {
       setTogglingIds((prev) => {
         const next = new Set(prev);
-        next.delete(tenantId);
+        next.delete(inboxId);
         return next;
       });
     }
@@ -104,24 +110,31 @@ export function SettingsView() {
   async function handleDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
+    setDeleteError("");
 
     try {
-      const response = await fetch("/api/onboarding/tenant-delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenant_id: deleteTarget.tenant_id }),
+      const response = await fetch(`/api/inboxes/${deleteTarget.id}`, {
+        method: "DELETE",
       });
 
-      if (response.ok) {
-        setTenants((prev) =>
-          prev.filter((t) => t.tenant_id !== deleteTarget.tenant_id),
-        );
+      if (response.status === 409) {
+        const data = (await response.json()) as { code?: string };
+        if (data.code === "LAST_INBOX") {
+          setDeleteError(
+            "Dies ist Ihr letztes Postfach und kann nicht gelöscht werden.",
+          );
+        }
+        return;
+      }
+
+      if (response.status === 204 || response.ok) {
+        setInboxes((prev) => prev.filter((i) => i.id !== deleteTarget.id));
+        setDeleteTarget(null);
       }
     } catch {
       // Network error — state unchanged
     } finally {
       setDeleting(false);
-      setDeleteTarget(null);
     }
   }
 
@@ -173,7 +186,7 @@ export function SettingsView() {
             </div>
           )}
 
-          {loadState === "loaded" && tenants.length === 0 && (
+          {loadState === "loaded" && inboxes.length === 0 && (
             <div className="flex flex-col items-center gap-4 rounded-lg border bg-background py-16">
               <Mail className="size-10 text-muted-foreground" />
               <div className="text-center">
@@ -194,27 +207,27 @@ export function SettingsView() {
             </div>
           )}
 
-          {loadState === "loaded" && tenants.length > 0 && (
+          {loadState === "loaded" && inboxes.length > 0 && (
             <div className="divide-y rounded-lg border bg-background">
-              {tenants.map((tenant) => (
+              {inboxes.map((inbox) => (
                 <div
-                  key={tenant.tenant_id}
+                  key={inbox.id}
                   className="flex items-center justify-between px-5 py-4"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span
                       className={`size-2.5 shrink-0 rounded-full ${
-                        tenant.active === 1 ? "bg-green-500" : "bg-gray-300"
+                        inbox.is_active === 1 ? "bg-green-500" : "bg-gray-300"
                       }`}
-                      title={tenant.active === 1 ? "Aktiv" : "Inaktiv"}
+                      title={inbox.is_active === 1 ? "Aktiv" : "Inaktiv"}
                     />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-foreground">
-                        {tenant.imap_user ?? tenant.tenant_id}
+                        {inbox.label || inbox.email}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Erstellt am{" "}
-                        {new Date(tenant.created_at).toLocaleDateString(
+                        {inbox.email} &middot; Erstellt am{" "}
+                        {new Date(inbox.created_at).toLocaleDateString(
                           "de-DE",
                           {
                             day: "2-digit",
@@ -230,21 +243,19 @@ export function SettingsView() {
                     <button
                       type="button"
                       role="switch"
-                      aria-checked={tenant.active === 1}
+                      aria-checked={inbox.is_active === 1}
                       aria-label={
-                        tenant.active === 1 ? "Deaktivieren" : "Aktivieren"
+                        inbox.is_active === 1 ? "Deaktivieren" : "Aktivieren"
                       }
-                      disabled={togglingIds.has(tenant.tenant_id)}
-                      onClick={() =>
-                        handleToggle(tenant.tenant_id, tenant.active)
-                      }
+                      disabled={togglingIds.has(inbox.id)}
+                      onClick={() => handleToggle(inbox.id, inbox.is_active)}
                       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-                        tenant.active === 1 ? "bg-green-500" : "bg-gray-200"
+                        inbox.is_active === 1 ? "bg-green-500" : "bg-gray-200"
                       }`}
                     >
                       <span
                         className={`pointer-events-none block size-5 rounded-full bg-white shadow-sm ring-0 transition-transform ${
-                          tenant.active === 1
+                          inbox.is_active === 1
                             ? "translate-x-5"
                             : "translate-x-0"
                         }`}
@@ -255,7 +266,7 @@ export function SettingsView() {
                       variant="ghost"
                       size="icon-sm"
                       className="cursor-pointer text-muted-foreground hover:text-destructive"
-                      onClick={() => setDeleteTarget(tenant)}
+                      onClick={() => setDeleteTarget(inbox)}
                     >
                       <Trash2 className="size-4" />
                     </Button>
@@ -283,13 +294,16 @@ export function SettingsView() {
       <AddInboxModal
         open={addInboxOpen}
         onOpenChange={setAddInboxOpen}
-        onSuccess={fetchTenants}
+        onSuccess={fetchInboxes}
       />
 
       <Dialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteError("");
+          }
         }}
       >
         <DialogContent>
@@ -302,15 +316,21 @@ export function SettingsView() {
           </DialogHeader>
           {deleteTarget && (
             <p className="text-sm font-medium text-foreground">
-              {deleteTarget.imap_user ?? deleteTarget.tenant_id}
+              {deleteTarget.email}
             </p>
+          )}
+          {deleteError && (
+            <p className="text-sm text-destructive">{deleteError}</p>
           )}
           <DialogFooter>
             <Button
               variant="outline"
               className="cursor-pointer"
               disabled={deleting}
-              onClick={() => setDeleteTarget(null)}
+              onClick={() => {
+                setDeleteTarget(null);
+                setDeleteError("");
+              }}
             >
               Abbrechen
             </Button>
@@ -318,7 +338,7 @@ export function SettingsView() {
               variant="destructive"
               className="cursor-pointer"
               disabled={deleting}
-              onClick={handleDelete}
+              onClick={() => void handleDelete()}
             >
               {deleting && <Loader2 className="size-4 animate-spin" />}
               Endgültig löschen

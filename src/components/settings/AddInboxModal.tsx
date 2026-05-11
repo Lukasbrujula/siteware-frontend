@@ -137,9 +137,6 @@ export function AddInboxModal({
   const [imapPort, setImapPort] = useState("993");
   const [smtpHost, setSmtpHost] = useState("smtp.gmail.com");
   const [smtpPort, setSmtpPort] = useState("465");
-  const [sitewareToken, setSitewareToken] = useState("");
-  const [showToken, setShowToken] = useState(false);
-  const [replyAgentId, setReplyAgentId] = useState("");
   const [testState, setTestState] = useState<TestState>("idle");
   const [testError, setTestError] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -151,9 +148,7 @@ export function AddInboxModal({
     imapHost.trim() !== "" &&
     imapPort.trim() !== "" &&
     smtpHost.trim() !== "" &&
-    smtpPort.trim() !== "" &&
-    sitewareToken.trim() !== "" &&
-    replyAgentId.trim() !== "";
+    smtpPort.trim() !== "";
 
   const busy = testState === "testing" || saveState === "saving";
 
@@ -166,9 +161,6 @@ export function AddInboxModal({
     setImapPort("993");
     setSmtpHost("smtp.gmail.com");
     setSmtpPort("465");
-    setSitewareToken("");
-    setShowToken(false);
-    setReplyAgentId("");
     setTestState("idle");
     setTestError("");
     setSaveState("idle");
@@ -232,39 +224,46 @@ export function AddInboxModal({
     setSaveError("");
 
     try {
-      const response = await fetch("/api/onboarding/save-tenant", {
+      const response = await fetch("/api/inboxes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          credentials: {
-            email: email.trim(),
-            password,
-            imapHost: imapHost.trim(),
-            imapPort: Number(imapPort),
-            smtpHost: smtpHost.trim(),
-            smtpPort: Number(smtpPort),
-          },
-          siteware_token: sitewareToken.trim(),
-          reply_agent_id: replyAgentId.trim(),
-          toneProfile: null,
-          websiteData: null,
-          emailSignature: "",
+          email: email.trim(),
+          password,
+          imapHost: imapHost.trim(),
+          imapPort: Number(imapPort),
+          smtpHost: smtpHost.trim(),
+          smtpPort: Number(smtpPort),
         }),
       });
 
-      const data = (await response.json()) as {
-        success: boolean;
-        error?: string;
-      };
-
-      if (!response.ok || !data.success) {
-        setSaveState("error");
-        setSaveError(data.error ?? "Fehler beim Speichern");
+      if (response.status === 201) {
+        onSuccess();
+        handleOpenChange(false);
         return;
       }
 
-      onSuccess();
-      handleOpenChange(false);
+      const data = (await response.json()) as {
+        error?: string;
+        code?: string;
+      };
+
+      if (response.status === 409 && data.code === "DUPLICATE_EMAIL") {
+        setSaveError("Dieses Postfach ist bereits verbunden.");
+      } else if (response.status === 412) {
+        setSaveError(
+          data.error ??
+            "Onboarding unvollständig — Siteware-Zugangsdaten fehlen.",
+        );
+      } else if (response.status === 422) {
+        setSaveError(data.error ?? "Ungültige Eingaben.");
+      } else if (response.status === 400) {
+        setSaveError(data.error ?? "IMAP-Verbindung fehlgeschlagen.");
+      } else {
+        setSaveError(data.error ?? "Fehler beim Speichern.");
+      }
+
+      setSaveState("error");
     } catch {
       setSaveState("error");
       setSaveError("Netzwerkfehler — Server nicht erreichbar");
@@ -406,54 +405,6 @@ export function AddInboxModal({
                 }
               />
             </div>
-          </div>
-
-          {/* Siteware API token */}
-          <div className="space-y-2 border-t border-gray-100 pt-3">
-            <Label htmlFor="ai-token">Siteware API-Schlüssel</Label>
-            <div className="relative">
-              <Input
-                id="ai-token"
-                type={showToken ? "text" : "password"}
-                placeholder="Siteware API-Token"
-                className="bg-gray-100 pr-10"
-                value={sitewareToken}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  setSitewareToken(e.target.value)
-                }
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                onClick={() => setShowToken((prev) => !prev)}
-                aria-label={
-                  showToken
-                    ? "API-Schlüssel verbergen"
-                    : "API-Schlüssel anzeigen"
-                }
-              >
-                {showToken ? (
-                  <EyeOff className="size-4" />
-                ) : (
-                  <Eye className="size-4" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Reply Agent ID */}
-          <div className="space-y-2">
-            <Label htmlFor="ai-reply-agent">Reply Agent ID</Label>
-            <Input
-              id="ai-reply-agent"
-              type="text"
-              placeholder="z. B. agent_def456"
-              className="bg-gray-100"
-              value={replyAgentId}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                setReplyAgentId(e.target.value)
-              }
-            />
           </div>
 
           {/* Feedback */}
