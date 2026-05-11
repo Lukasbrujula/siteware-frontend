@@ -1,8 +1,8 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { useEmailStore } from "@/lib/store/email-store";
 import { useUiStore } from "@/lib/store/ui-store";
-import type { CategorySlice } from "@/types/email";
+import { useFilteredSlice } from "@/hooks/useFilteredSlice";
+import type { CategorySlice, UnsubscribeStatus } from "@/types/email";
 import { SpamView } from "@/views/SpamView";
 import { AdView } from "@/views/AdView";
 import { UrgentView } from "@/views/UrgentView";
@@ -27,31 +27,28 @@ const TAB_CONFIG: readonly TabConfig[] = [
 ] as const;
 
 function useSliceCount(slice: CategorySlice): number {
-  return useEmailStore((state) => {
-    switch (slice) {
-      case "spam":
-        return state.spam.length;
-      case "ads":
-        return state.ads.length;
-      case "urgent":
-        return state.urgent.length;
-      case "other":
-        return state.other.length;
-      case "escalations":
-        return state.escalations.length;
-      case "unsubscribes":
-        return state.unsubscribes.filter(
-          (u) => u.status === "nicht erfolgreich",
-        ).length;
-      case "sent":
-        return 0;
-      default: {
-        const _exhaustive: never = slice;
-        void _exhaustive;
-        return 0;
-      }
+  // Read through useFilteredSlice so badge counts respect the inbox dropdown.
+  // When no inbox is selected, the hook returns the full slice unchanged.
+  const filtered = useFilteredSlice(slice);
+  switch (slice) {
+    case "spam":
+    case "ads":
+    case "urgent":
+    case "other":
+    case "escalations":
+      return filtered.length;
+    case "unsubscribes":
+      return (filtered as readonly UnsubscribeStatus[]).filter(
+        (u) => u.status === "nicht erfolgreich",
+      ).length;
+    case "sent":
+      return 0;
+    default: {
+      const _exhaustive: never = slice;
+      void _exhaustive;
+      return 0;
     }
-  });
+  }
 }
 
 function TabBadge({ slice }: { readonly slice: CategorySlice }) {

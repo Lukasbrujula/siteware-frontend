@@ -2,20 +2,28 @@ import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { LogOut, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useEmailStore } from "@/lib/store/email-store";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { InboxFilter } from "@/components/email/InboxFilter";
+import { useFilteredSlice } from "@/hooks/useFilteredSlice";
 
 function ActionCountBadge() {
-  const count = useEmailStore(
-    (state) =>
-      state.spam.length +
-      state.ads.length +
-      state.urgent.length +
-      state.other.length +
-      state.escalations.length +
-      state.unsubscribes.filter((u) => u.status === "nicht erfolgreich").length,
-  );
+  // Per-slice reads via useFilteredSlice so the header badge respects the
+  // inbox dropdown the same way the tab badges and view tables do.
+  const spamCount = useFilteredSlice("spam").length;
+  const adsCount = useFilteredSlice("ads").length;
+  const urgentCount = useFilteredSlice("urgent").length;
+  const otherCount = useFilteredSlice("other").length;
+  const escalationsCount = useFilteredSlice("escalations").length;
+  const failedUnsubscribesCount = useFilteredSlice("unsubscribes").filter(
+    (u) => u.status === "nicht erfolgreich",
+  ).length;
+  const count =
+    spamCount +
+    adsCount +
+    urgentCount +
+    otherCount +
+    escalationsCount +
+    failedUnsubscribesCount;
 
   if (count === 0) return null;
 
