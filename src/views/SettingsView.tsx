@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { AddInboxModal } from "@/components/settings/AddInboxModal";
 import { ToneSettingsPanel } from "@/components/settings/ToneSettingsPanel";
 import { useAuthStore } from "@/lib/store/auth-store";
+import { toIsoDate } from "@/lib/dates";
 import {
   Dialog,
   DialogContent,
@@ -227,14 +228,13 @@ export function SettingsView() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {inbox.email} &middot; Erstellt am{" "}
-                        {new Date(inbox.created_at).toLocaleDateString(
-                          "de-DE",
-                          {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                          },
-                        )}
+                        {new Date(
+                          toIsoDate(inbox.created_at),
+                        ).toLocaleDateString("de-DE", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })}
                       </p>
                     </div>
                   </div>
