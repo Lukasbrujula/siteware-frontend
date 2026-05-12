@@ -34,9 +34,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
   checkAuth: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch("/api/auth/me");
+      const response = await fetch("/api/auth/me", {
+        credentials: "include",
+      });
       if (response.ok) {
         const json = (await response.json()) as Record<string, unknown>;
+        if (json.authenticated === false) {
+          set({ user: null, isVerified: false, isLoading: false, error: null });
+          return;
+        }
         const src =
           (json.tenant as Record<string, unknown> | undefined) ?? json;
         if (typeof src.email !== "string") {
