@@ -77,6 +77,7 @@ export type ToneProfile = {
   readonly anrede?: Anrede;
   readonly sprachstil?: readonly Sprachstil[];
   readonly email_length?: EmailLength;
+  readonly knowledgebase?: string;
 };
 
 export type AnalyzeRequest = {

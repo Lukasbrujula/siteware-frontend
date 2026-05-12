@@ -42,14 +42,10 @@ type ScanResult = {
   readonly rawEmails?: readonly EmailSample[];
 };
 
-type WebsiteData = {
-  readonly rawText?: string;
-} | null;
-
 type Step4ToneAnalysisProps = {
   readonly state: {
     readonly sentScan: ScanResult;
-    readonly websiteData: WebsiteData;
+    readonly knowledgebase: string;
   };
   readonly detectedSignature: string;
   readonly onUpdate: (data: {
@@ -97,7 +93,8 @@ export function Step4ToneAnalysis({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             sentEmails: state.sentScan.rawEmails ?? [],
-            websiteContent: state.websiteData?.rawText ?? null,
+            websiteContent:
+              state.knowledgebase.trim() === "" ? null : state.knowledgebase,
             tenantId: "default",
           }),
           signal,
@@ -131,7 +128,7 @@ export function Step4ToneAnalysis({
         setErrorMessage("Netzwerkfehler — Server nicht erreichbar");
       }
     },
-    [state.sentScan.rawEmails, state.websiteData],
+    [state.sentScan.rawEmails, state.knowledgebase],
   );
 
   useEffect(() => {

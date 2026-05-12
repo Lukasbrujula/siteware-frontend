@@ -22,6 +22,7 @@ type EditableState = {
   readonly industryJargon: readonly string[];
   readonly greeting: string;
   readonly closing: string;
+  readonly knowledgebase: string;
 };
 
 function profileToEditable(
@@ -38,6 +39,7 @@ function profileToEditable(
     industryJargon: [...profile.industry_jargon],
     greeting: profile.greeting_style,
     closing: profile.closing_style,
+    knowledgebase: profile.knowledgebase ?? "",
   };
 }
 
@@ -122,6 +124,7 @@ export function ToneSettingsPanel() {
     industryJargon: [],
     greeting: "",
     closing: "",
+    knowledgebase: "",
   });
   const [originalProfile, setOriginalProfile] = useState<ToneProfile | null>(
     null,
@@ -182,6 +185,7 @@ export function ToneSettingsPanel() {
       closing_style: state.closing,
       typical_phrases: [...state.typicalPhrases],
       industry_jargon: [...state.industryJargon],
+      knowledgebase: state.knowledgebase,
       updated_at: now,
     };
 
@@ -373,6 +377,24 @@ export function ToneSettingsPanel() {
             setState((prev) => ({ ...prev, signature: e.target.value }))
           }
         />
+      </div>
+
+      {/* Knowledgebase */}
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-foreground">
+          Wissensbasis
+        </label>
+        <Textarea
+          className="min-h-[160px] resize-y bg-background text-sm"
+          placeholder="Beschreiben Sie hier Ihr Unternehmen, Ihre Produkte und Dienstleistungen, typische Kundenfragen, und alles was die KI wissen sollte, um qualitativ hochwertige Antworten zu schreiben."
+          value={state.knowledgebase}
+          onChange={(e) =>
+            setState((prev) => ({ ...prev, knowledgebase: e.target.value }))
+          }
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Kontext, der bei jedem KI-Entwurf berücksichtigt wird.
+        </p>
       </div>
 
       {/* Keywords / Phrases */}

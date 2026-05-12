@@ -4,7 +4,7 @@ import {
   Loader2,
   AlertCircle,
   Mail,
-  Globe,
+  BookOpen,
   Pen,
   Shield,
   FileSignature,
@@ -29,11 +29,6 @@ type ScanResult = {
   readonly emails_scanned: number;
 };
 
-type WebsiteData = {
-  readonly description?: string;
-  readonly keywords?: readonly string[];
-} | null;
-
 type ToneProfile = {
   readonly formality: "formal" | "informal";
   readonly greeting: string;
@@ -47,7 +42,7 @@ type ToneProfile = {
 type OnboardingState = {
   readonly credentials: Credentials;
   readonly sentScan: ScanResult;
-  readonly websiteData: WebsiteData;
+  readonly knowledgebase: string;
   readonly toneProfile: ToneProfile;
   readonly emailSignature: string;
 };
@@ -91,7 +86,7 @@ export function Step5Confirm({ state, onEditTone }: Step5ConfirmProps) {
           siteware_token: state.credentials.sitewareToken,
           reply_agent_id: state.credentials.replyAgentId,
           toneProfile: state.toneProfile,
-          websiteData: state.websiteData,
+          knowledgebase: state.knowledgebase,
           emailSignature: state.emailSignature,
         }),
       });
@@ -129,7 +124,7 @@ export function Step5Confirm({ state, onEditTone }: Step5ConfirmProps) {
     navigate("/");
   }
 
-  const { credentials, sentScan, websiteData, toneProfile } = state;
+  const { credentials, sentScan, knowledgebase, toneProfile } = state;
 
   if (saveState === "success" && dashboardUrl) {
     return (
@@ -224,34 +219,20 @@ export function Step5Confirm({ state, onEditTone }: Step5ConfirmProps) {
           </p>
         </div>
 
-        {/* Website */}
+        {/* Knowledgebase */}
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
           <div className="mb-2 flex items-center gap-2">
-            <Globe className="size-4 text-[#CC00FF]" />
-            <span className="text-sm font-medium text-gray-900">Website</span>
+            <BookOpen className="size-4 text-[#CC00FF]" />
+            <span className="text-sm font-medium text-gray-900">
+              Wissensbasis
+            </span>
           </div>
-          {websiteData ? (
-            <div>
-              {websiteData.description && (
-                <p className="text-sm text-gray-600">
-                  {websiteData.description}
-                </p>
-              )}
-              {websiteData.keywords && websiteData.keywords.length > 0 && (
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {websiteData.keywords.map((kw) => (
-                    <span
-                      key={kw}
-                      className="rounded-full bg-white px-2.5 py-0.5 text-xs text-gray-600 ring-1 ring-gray-200"
-                    >
-                      {kw}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+          {knowledgebase.trim() !== "" ? (
+            <pre className="whitespace-pre-wrap text-sm text-gray-600">
+              {knowledgebase}
+            </pre>
           ) : (
-            <p className="text-sm italic text-gray-400">Übersprungen</p>
+            <p className="text-sm italic text-gray-400">Nicht hinterlegt</p>
           )}
         </div>
 

@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { Step1Credentials } from "@/components/onboarding/Step1Credentials";
 import { Step2ScanSent } from "@/components/onboarding/Step2ScanSent";
-import { Step3WebsiteScrape } from "@/components/onboarding/Step3WebsiteScrape";
+import { Step3Knowledgebase } from "@/components/onboarding/Step3Knowledgebase";
 import { Step4ToneAnalysis } from "@/components/onboarding/Step4ToneAnalysis";
 import { Step5Confirm } from "@/components/onboarding/Step5Confirm";
 
@@ -29,12 +29,7 @@ type OnboardingState = {
     }[];
     readonly detectedSignature: string | null;
   } | null;
-  readonly websiteData: {
-    readonly success: boolean;
-    readonly description: string;
-    readonly keywords: readonly string[];
-    readonly rawText?: string;
-  } | null;
+  readonly knowledgebase: string;
   readonly toneProfile: {
     readonly formality: "formal" | "informal";
     readonly greeting: string;
@@ -52,7 +47,7 @@ const TOTAL_STEPS = 5;
 const STEP_LABELS: readonly string[] = [
   "Zugangsdaten",
   "E-Mail-Scan",
-  "Website",
+  "Wissensbasis",
   "Schreibstil",
   "Bestätigung",
 ];
@@ -89,7 +84,7 @@ export function OnboardingView() {
   const [state, setState] = useState<OnboardingState>({
     credentials: null,
     sentScan: null,
-    websiteData: null,
+    knowledgebase: "",
     toneProfile: null,
     emailSignature: "",
   });
@@ -162,14 +157,18 @@ export function OnboardingView() {
           )}
 
           {currentStep === 3 && (
-            <Step3WebsiteScrape onUpdate={handleUpdate} onNext={handleNext} />
+            <Step3Knowledgebase
+              value={state.knowledgebase}
+              onUpdate={handleUpdate}
+              onNext={handleNext}
+            />
           )}
 
           {currentStep === 4 && state.sentScan && (
             <Step4ToneAnalysis
               state={{
                 sentScan: state.sentScan,
-                websiteData: state.websiteData,
+                knowledgebase: state.knowledgebase,
               }}
               detectedSignature={state.sentScan.detectedSignature ?? ""}
               onUpdate={handleUpdate}
@@ -185,7 +184,7 @@ export function OnboardingView() {
                 state={{
                   credentials: state.credentials,
                   sentScan: state.sentScan,
-                  websiteData: state.websiteData,
+                  knowledgebase: state.knowledgebase,
                   toneProfile: state.toneProfile,
                   emailSignature: state.emailSignature,
                 }}
