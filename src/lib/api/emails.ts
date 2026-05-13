@@ -1,7 +1,7 @@
 import { useEmailStore } from "@/lib/store/email-store";
 import { useUiStore } from "@/lib/store/ui-store";
 import { toIsoDate } from "@/lib/dates";
-import type { Inbox } from "@/types/email";
+import type { Inbox, SentEmail } from "@/types/email";
 
 type RawEmail = Record<string, unknown>;
 
@@ -200,20 +200,42 @@ export function mapBackendResponse(data: unknown): Record<string, unknown[]> {
   return result;
 }
 
-export async function refreshStoreFromServer(): Promise<void> {
-  const response = await fetch("/api/emails", {
+async function fetchSentEmails(): Promise<void> {
+  const response = await fetch("/api/emails/sent", {
     headers: { "Cache-Control": "no-cache" },
     signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) return;
 
-  const json = (await response.json()) as Record<string, unknown>;
-
-  // Accept { success: true, data: ... } or just { data: ... } or raw data
-  const payload = json.data ?? json;
+  const json = (await response.json()) as {
+    success?: boolean;
+    data?: readonly SentEmail[];
+  };
   if (json.success === false) return;
+  if (Array.isArray(json.data)) {
+    useEmailStore.getState().setSentEmails(json.data);
+  }
+}
 
-  useEmailStore.getState().hydrateFromServer(mapBackendResponse(payload));
+export async function refreshStoreFromServer(): Promise<void> {
+  const inboxPromise = fetch("/api/emails", {
+    headers: { "Cache-Control": "no-cache" },
+    signal: AbortSignal.timeout(10_000),
+  }).then(async (response) => {
+    if (!response.ok) return;
+    const json = (await response.json()) as Record<string, unknown>;
+    const payload = json.data ?? json;
+    if (json.success === false) return;
+    useEmailStore.getState().hydrateFromServer(mapBackendResponse(payload));
+  });
+
+  // Refresh sent list in parallel so the Gesendet tab reflects newly-sent
+  // emails immediately after an approve action.
+  const sentPromise = fetchSentEmails().catch(() => {
+    // Non-critical — Gesendet tab will refetch on next mount.
+  });
+
+  await Promise.all([inboxPromise, sentPromise]);
 }
 
 export class ServerApiError extends Error {

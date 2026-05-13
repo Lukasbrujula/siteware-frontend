@@ -106,13 +106,16 @@ export function DraftReviewView({ title, slice }: DraftReviewViewProps) {
         updateEmailStatus(emailId, { status: "sent" }).catch(() => {
           // Non-critical: local removal already happened
         });
-        // Re-sync from server so the email shows up in Sent and any
-        // server-side status changes are reflected immediately.
-        refreshStoreFromServer().catch(() => {
-          // Non-critical: next poll will catch up
-        });
         setSelectedEmailId(null);
         setDraftEditorContent("");
+        // Await re-sync so the inbox + Gesendet tab reflect the new state
+        // before the submitting flag clears. Without awaiting, a stale
+        // /api/emails response could race back in and re-add the email.
+        try {
+          await refreshStoreFromServer();
+        } catch {
+          // Non-critical: next poll will catch up
+        }
         emitAuditEvent({
           action: "draft_approved",
           email_id: emailId,
