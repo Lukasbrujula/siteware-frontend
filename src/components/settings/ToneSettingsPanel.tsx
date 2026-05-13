@@ -30,15 +30,14 @@ function profileToEditable(
   signature: string,
 ): EditableState {
   return {
-    anrede:
-      profile.anrede ?? (profile.formality_level === "informal" ? "du" : "sie"),
+    anrede: profile.anrede ?? (profile.formality === "informal" ? "du" : "sie"),
     sprachstil: profile.sprachstil ?? [],
     emailLength: profile.email_length ?? "mittlerer-umfang",
     signature,
-    typicalPhrases: [...profile.typical_phrases],
-    industryJargon: [...profile.industry_jargon],
-    greeting: profile.greeting_style,
-    closing: profile.closing_style,
+    typicalPhrases: [...(profile.preferences ?? [])],
+    industryJargon: [...(profile.jargon ?? [])],
+    greeting: profile.greeting ?? "",
+    closing: profile.closing ?? "",
     knowledgebase: profile.knowledgebase ?? "",
   };
 }
@@ -180,11 +179,11 @@ export function ToneSettingsPanel() {
       anrede: state.anrede,
       sprachstil: [...state.sprachstil],
       email_length: state.emailLength,
-      formality_level: state.anrede === "du" ? "informal" : "formal",
-      greeting_style: state.greeting,
-      closing_style: state.closing,
-      typical_phrases: [...state.typicalPhrases],
-      industry_jargon: [...state.industryJargon],
+      formality: state.anrede === "du" ? "informal" : "formal",
+      greeting: state.greeting,
+      closing: state.closing,
+      preferences: [...state.typicalPhrases],
+      jargon: [...state.industryJargon],
       knowledgebase: state.knowledgebase,
       updated_at: now,
     };

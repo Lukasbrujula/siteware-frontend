@@ -60,19 +60,29 @@ export const EMAIL_LENGTH_OPTIONS: readonly {
 
 export type ToneProfile = {
   readonly tenant_id: string;
-  readonly greeting_style: string;
-  readonly closing_style: string;
-  readonly formality_level: "formal" | "semi-formal" | "informal";
-  readonly sentence_length: "short" | "medium" | "long";
-  readonly vocabulary_complexity: "simple" | "moderate" | "advanced";
-  readonly emotional_tone: string;
-  readonly use_of_humor: boolean;
-  readonly typical_phrases: readonly string[];
-  readonly avoidances: readonly string[];
-  readonly industry_jargon: readonly string[];
-  readonly language: "de" | "en";
-  readonly created_at: string;
-  readonly updated_at: string;
+  // Canonical wizard-shape keys (source of truth — Step5Confirm payload)
+  readonly greeting?: string;
+  readonly closing?: string;
+  readonly formality?: "formal" | "informal";
+  readonly preferences?: readonly string[];
+  readonly jargon?: readonly string[];
+  readonly sentenceStyle?: string;
+  readonly avoidances?: readonly string[];
+  // Legacy *_style/*_level keys — kept optional so pre-existing DB rows
+  // with dual-namespace pollution still type-check during originalProfile spread.
+  // No longer read or written by the settings panel.
+  readonly greeting_style?: string;
+  readonly closing_style?: string;
+  readonly formality_level?: "formal" | "semi-formal" | "informal";
+  readonly sentence_length?: "short" | "medium" | "long";
+  readonly vocabulary_complexity?: "simple" | "moderate" | "advanced";
+  readonly emotional_tone?: string;
+  readonly use_of_humor?: boolean;
+  readonly typical_phrases?: readonly string[];
+  readonly industry_jargon?: readonly string[];
+  readonly language?: "de" | "en";
+  readonly created_at?: string;
+  readonly updated_at?: string;
   // Siteware platform fields
   readonly anrede?: Anrede;
   readonly sprachstil?: readonly Sprachstil[];
