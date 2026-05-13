@@ -200,21 +200,34 @@ export function mapBackendResponse(data: unknown): Record<string, unknown[]> {
   return result;
 }
 
-async function fetchSentEmails(): Promise<void> {
+function extractSentArray(
+  json: Record<string, unknown>,
+): readonly RawEmail[] | null {
+  // Accept multiple backend shapes:
+  //   { success: true, data: [...] }   (Vercel API)
+  //   { emails: [...] }                (SiteFlow Express API)
+  //   [ ... ]                          (bare array fallback)
+  if (Array.isArray(json)) return json as readonly RawEmail[];
+  if (Array.isArray(json.data)) return json.data as readonly RawEmail[];
+  if (Array.isArray(json.emails)) return json.emails as readonly RawEmail[];
+  return null;
+}
+
+export async function fetchSentEmails(): Promise<void> {
   const response = await fetch("/api/emails/sent", {
     headers: { "Cache-Control": "no-cache" },
     signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) return;
 
-  const json = (await response.json()) as {
-    success?: boolean;
-    data?: readonly SentEmail[];
-  };
+  const json = (await response.json()) as Record<string, unknown>;
   if (json.success === false) return;
-  if (Array.isArray(json.data)) {
-    useEmailStore.getState().setSentEmails(json.data);
-  }
+
+  const raw = extractSentArray(json);
+  if (!raw) return;
+
+  const sent = raw.map((item) => mapBackendEmail(item) as unknown as SentEmail);
+  useEmailStore.getState().setSentEmails(sent);
 }
 
 export async function refreshStoreFromServer(): Promise<void> {

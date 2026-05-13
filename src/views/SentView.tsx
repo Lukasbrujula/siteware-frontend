@@ -16,8 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useEmailStore } from "@/lib/store/email-store";
 import { useFilteredSlice } from "@/hooks/useFilteredSlice";
+import { fetchSentEmails } from "@/lib/api/emails";
 import type { SentEmail } from "@/types/email";
 
 function formatDate(dateStr: string): string {
@@ -58,7 +58,6 @@ function ExpandedSentRow({ email }: { readonly email: SentEmail }) {
 
 export function SentView() {
   const emails = useFilteredSlice("sent");
-  const setSentEmails = useEmailStore((state) => state.setSentEmails);
   const [isLoading, setIsLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -67,15 +66,7 @@ export function SentView() {
     if (hasFetched) return;
 
     setIsLoading(true);
-    fetch("/api/emails/sent", {
-      signal: AbortSignal.timeout(10_000),
-    })
-      .then((res) => res.json())
-      .then((json: { success: boolean; data?: SentEmail[] }) => {
-        if (json.success && json.data) {
-          setSentEmails(json.data);
-        }
-      })
+    fetchSentEmails()
       .catch(() => {
         // Silent fail — sent tab is informational
       })
@@ -83,7 +74,7 @@ export function SentView() {
         setIsLoading(false);
         setHasFetched(true);
       });
-  }, [hasFetched, setSentEmails]);
+  }, [hasFetched]);
 
   const handleToggleExpand = useCallback((emailId: string) => {
     setExpandedId((prev) => (prev === emailId ? null : emailId));
